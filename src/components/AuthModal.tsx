@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -33,6 +34,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       description: "Welcome back to Nexus!"
     });
     onClose();
+    // Navigate to dashboard after successful login
+    navigate('/dashboard');
   };
 
   const handleNextStep = (e: React.FormEvent) => {
@@ -47,6 +50,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       description: "Welcome to Freelancer Hub Nexus!"
     });
     onClose();
+    // Navigate to dashboard after successful signup
+    navigate('/dashboard');
     // Reset the state for next time
     setSignupStep(1);
   };
