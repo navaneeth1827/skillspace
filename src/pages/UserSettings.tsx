@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { UserCircle, Bell, Moon, Sun, Shield, LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import UserAvatar, { avatarOptions } from "@/components/UserAvatar";
+import GraphicAvatar, { AvatarSelector, AvatarStyle } from "@/components/GraphicAvatar";
 import { toast } from "@/components/ui/use-toast";
 
 const UserSettings = () => {
@@ -22,7 +22,7 @@ const UserSettings = () => {
     name: "Alex Johnson",
     email: "alex@example.com",
     username: "alexjohnson",
-    avatarUrl: avatarOptions[0].url,
+    avatarStyle: "bottts" as AvatarStyle,
     notificationsEnabled: true,
     darkModeEnabled: false,
     twoFactorEnabled: false
@@ -44,8 +44,8 @@ const UserSettings = () => {
     });
   };
 
-  const handleAvatarChange = (avatarUrl: string) => {
-    setUser({ ...user, avatarUrl });
+  const handleAvatarStyleChange = (style: AvatarStyle) => {
+    setUser({ ...user, avatarStyle: style });
     toast({
       title: "Avatar updated",
       description: "Your profile picture has been updated.",
@@ -133,30 +133,20 @@ const UserSettings = () => {
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle>Profile Picture</CardTitle>
-                <CardDescription>Choose your avatar</CardDescription>
+                <CardDescription>Choose your avatar style</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center space-y-6">
-                <UserAvatar 
-                  avatarUrl={user.avatarUrl} 
+                <GraphicAvatar 
                   username={user.name}
+                  style={user.avatarStyle}
                   size="xl"
                 />
                 
-                <div className="grid grid-cols-3 gap-2">
-                  {avatarOptions.map(avatar => (
-                    <button
-                      key={avatar.id}
-                      onClick={() => handleAvatarChange(avatar.url)}
-                      className={`rounded-md p-1 transition-all ${user.avatarUrl === avatar.url ? 'ring-2 ring-purple-400' : 'hover:bg-white/5'}`}
-                    >
-                      <UserAvatar 
-                        avatarUrl={avatar.url} 
-                        username={avatar.name}
-                        size="sm"
-                      />
-                    </button>
-                  ))}
-                </div>
+                <AvatarSelector 
+                  username={user.name} 
+                  selectedStyle={user.avatarStyle} 
+                  onSelect={handleAvatarStyleChange} 
+                />
               </CardContent>
             </Card>
           </div>

@@ -16,7 +16,8 @@ const Navbar = () => {
 
   const navLinks = [
     { text: "Home", href: "/" },
-    { text: "Find Jobs", href: "/jobs" },
+    { text: "Browse Jobs", href: "/jobs" },
+    { text: "Find a Job", href: "/find-job" },
     { text: "Post a Job", href: "/post-job" },
   ];
 

@@ -5,34 +5,34 @@
 
 @layer base {
   :root {
-    --background: 260 47% 11%;
+    --background: 222 47% 11%;
     --foreground: 210 40% 98%;
-    --card: 260 47% 11%;
+    --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
-    --popover: 260 47% 11%;
+    --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-    --primary: 267 79% 75%;
-    --primary-foreground: 260 47% 11%;
-    --secondary: 257 33% 17%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 257 33% 17%;
+    --muted: 217 33% 17%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 267 79% 75%;
-    --accent-foreground: 260 47% 11%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 222 47% 11%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 257 33% 17%;
-    --input: 257 33% 17%;
-    --ring: 267 79% 75%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 224 76% 48%;
     --radius: 0.75rem;
   }
 
   * {
-    @apply border-border selection:bg-purple-800/30 selection:text-white;
+    @apply border-border selection:bg-blue-800/30 selection:text-white;
   }
   
   body {
-    @apply bg-purple-950 text-foreground antialiased overflow-x-hidden;
+    @apply bg-slate-900 text-foreground antialiased overflow-x-hidden;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
 
@@ -64,7 +64,7 @@
   }
   
   .accent-gradient {
-    @apply bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent;
   }
   
   .hover-shadow {
@@ -76,10 +76,10 @@
   }
   
   .neon-text {
-    @apply text-purple-400 animate-glow;
+    @apply text-blue-400 animate-glow;
   }
   
   .neon-border {
-    @apply border border-purple-400 shadow-[0_0_5px_#9b87f5,0_0_10px_rgba(155,135,245,0.5)];
+    @apply border border-blue-400 shadow-[0_0_5px_#3b82f6,0_0_10px_rgba(59,130,246,0.5)];
   }
 }
