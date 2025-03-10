@@ -1,14 +1,16 @@
 
 import { cn } from "@/lib/utils";
-import { ButtonHTMLAttributes, forwardRef } from "react";
+import { ButtonHTMLAttributes, forwardRef, ReactNode } from "react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "default" | "outline" | "ghost" | "link";
   size?: "default" | "sm" | "lg";
+  asChild?: boolean;
+  children: ReactNode;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, children, variant = "default", size = "default", ...props }, ref) => {
+  ({ className, children, variant = "default", size = "default", asChild = false, ...props }, ref) => {
     return (
       <button
         className={cn(

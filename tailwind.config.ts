@@ -63,11 +63,12 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				navy: {
-					DEFAULT: '#0A192F',
-					light: '#112240',
-					bright: '#1E3A8A',
-					accent: '#4FD1C5'
+				purple: {
+					DEFAULT: '#9b87f5',
+					light: '#7E69AB',
+					bright: '#6E59A5',
+					dark: '#1A1F2C',
+					accent: '#D6BCFA'
 				}
 			},
 			borderRadius: {
@@ -118,10 +119,10 @@ export default {
 				},
 				'glow': {
 					'0%, 100%': { 
-						textShadow: '0 0 10px rgba(79, 209, 197, 0.3), 0 0 40px rgba(79, 209, 197, 0.2)' 
+						textShadow: '0 0 10px rgba(155, 135, 245, 0.3), 0 0 40px rgba(155, 135, 245, 0.2)' 
 					},
 					'50%': { 
-						textShadow: '0 0 20px rgba(79, 209, 197, 0.5), 0 0 60px rgba(79, 209, 197, 0.4)' 
+						textShadow: '0 0 20px rgba(155, 135, 245, 0.5), 0 0 60px rgba(155, 135, 245, 0.4)' 
 					},
 				},
 			},
@@ -136,8 +137,8 @@ export default {
 			},
 			backgroundImage: {
 				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-				'navy-gradient': 'linear-gradient(to right, #0A192F, #112240)',
-				'neon-gradient': 'linear-gradient(to right, #4FD1C5, #63B3ED)',
+				'purple-gradient': 'linear-gradient(to right, #9b87f5, #7E69AB)',
+				'neon-gradient': 'linear-gradient(to right, #D6BCFA, #9b87f5)',
 			},
 		}
 	},
