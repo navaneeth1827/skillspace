@@ -62,6 +62,12 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				navy: {
+					DEFAULT: '#0A192F',
+					light: '#112240',
+					bright: '#1E3A8A',
+					accent: '#4FD1C5'
 				}
 			},
 			borderRadius: {
@@ -110,6 +116,14 @@ export default {
 						opacity: '0.8' 
 					},
 				},
+				'glow': {
+					'0%, 100%': { 
+						textShadow: '0 0 10px rgba(79, 209, 197, 0.3), 0 0 40px rgba(79, 209, 197, 0.2)' 
+					},
+					'50%': { 
+						textShadow: '0 0 20px rgba(79, 209, 197, 0.5), 0 0 60px rgba(79, 209, 197, 0.4)' 
+					},
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -118,6 +132,12 @@ export default {
 				'fade-up': 'fade-up 0.6s ease-out',
 				'slide-in-right': 'slide-in-right 0.5s ease-out',
 				'pulse-soft': 'pulse-soft 3s infinite ease-in-out',
+				'glow': 'glow 3s infinite ease-in-out',
+			},
+			backgroundImage: {
+				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+				'navy-gradient': 'linear-gradient(to right, #0A192F, #112240)',
+				'neon-gradient': 'linear-gradient(to right, #4FD1C5, #63B3ED)',
 			},
 		}
 	},
