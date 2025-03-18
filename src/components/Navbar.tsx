@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Calendar, Menu, MessageSquare, Settings, X, ListTodo, Users } from "lucide-react";
 import Button from "./Button";
 import AuthModal from "./AuthModal";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,9 @@ const Navbar = () => {
     { text: "Home", href: "/" },
     { text: "Find a Job", href: "/find-job" },
     { text: "Post a Job", href: "/post-job" },
+    { text: "Community", href: "/community", icon: <Users size={18} /> },
+    { text: "Calendar", href: "/calendar", icon: <Calendar size={18} /> },
+    { text: "Tasks", href: "/tasks", icon: <ListTodo size={18} /> },
   ];
 
   return (
@@ -40,17 +43,27 @@ const Navbar = () => {
                 key={link.href}
                 to={link.href}
                 className={cn(
-                  "text-sm transition-colors hover:text-primary",
+                  "text-sm transition-colors hover:text-primary flex items-center gap-1.5",
                   location.pathname === link.href ? "text-primary" : "text-muted-foreground"
                 )}
               >
+                {link.icon && link.icon}
                 {link.text}
               </Link>
             ))}
           </nav>
 
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Desktop Auth Buttons and Settings */}
+          <div className="hidden md:flex items-center gap-4">
+            <Link 
+              to="/settings"
+              className={cn(
+                "text-sm transition-colors hover:text-primary",
+                location.pathname === "/settings" ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <Settings size={20} />
+            </Link>
             <Button 
               variant="ghost" 
               onClick={() => setIsAuthModalOpen(true)}
@@ -81,14 +94,26 @@ const Navbar = () => {
                   key={link.href}
                   to={link.href}
                   className={cn(
-                    "text-lg transition-colors hover:text-primary",
+                    "text-lg transition-colors hover:text-primary flex items-center gap-2",
                     location.pathname === link.href ? "text-primary" : "text-muted-foreground"
                   )}
                   onClick={closeMenu}
                 >
+                  {link.icon && link.icon}
                   {link.text}
                 </Link>
               ))}
+              <Link
+                to="/settings"
+                className={cn(
+                  "text-lg transition-colors hover:text-primary flex items-center gap-2",
+                  location.pathname === "/settings" ? "text-primary" : "text-muted-foreground"
+                )}
+                onClick={closeMenu}
+              >
+                <Settings size={18} />
+                Settings
+              </Link>
               <div className="flex flex-col gap-4 mt-4">
                 <Button 
                   variant="outline" 

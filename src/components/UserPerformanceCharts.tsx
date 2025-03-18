@@ -65,9 +65,9 @@ const performanceMetrics = [
 
 const UserPerformanceCharts = () => {
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
       {/* Activity Chart */}
-      <Card className="col-span-1 md:col-span-2">
+      <Card className="col-span-1 md:col-span-2 lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" />
@@ -117,7 +117,7 @@ const UserPerformanceCharts = () => {
       </Card>
 
       {/* Skills Radar Chart */}
-      <Card>
+      <Card className="col-span-1 md:col-span-1 lg:col-span-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
@@ -141,7 +141,7 @@ const UserPerformanceCharts = () => {
       </Card>
 
       {/* Job Match Distribution */}
-      <Card>
+      <Card className="col-span-1 md:col-span-1 lg:col-span-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
@@ -175,7 +175,7 @@ const UserPerformanceCharts = () => {
       </Card>
 
       {/* Performance Metrics */}
-      <Card className="col-span-1 md:col-span-3">
+      <Card className="col-span-1 md:col-span-2 lg:col-span-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Award className="h-5 w-5 text-primary" />
