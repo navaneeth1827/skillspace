@@ -29,8 +29,8 @@ const Navbar = () => {
             className="text-xl font-bold flex items-center gap-2 text-gradient"
             onClick={closeMenu}
           >
-            <span>Freelancer Hub</span>
-            <span className="text-primary">Nexus</span>
+            <span>Skill</span>
+            <span className="text-primary">Space</span>
           </Link>
 
           {/* Desktop Navigation */}

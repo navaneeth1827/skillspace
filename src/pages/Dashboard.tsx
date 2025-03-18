@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -10,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Button from "@/components/Button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import UserPerformanceCharts from "@/components/UserPerformanceCharts";
 
 // Sample data for dashboard display
 const recommendedJobs = [
@@ -176,6 +176,12 @@ const Dashboard = () => {
             {/* Main Content */}
             <div className="md:w-3/4">
               <h1 className="text-2xl font-bold mb-6">Welcome back, John!</h1>
+              
+              {/* User Performance Analytics */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold mb-4">Your Performance Analytics</h2>
+                <UserPerformanceCharts />
+              </div>
               
               {/* Search Bar */}
               <div className="relative mb-6">
