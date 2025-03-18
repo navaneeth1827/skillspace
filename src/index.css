@@ -39,6 +39,11 @@
   html {
     @apply scroll-smooth;
   }
+  
+  /* Adding input styling globally */
+  input, textarea, select {
+    @apply bg-black text-white placeholder:text-gray-500;
+  }
 }
 
 @layer utilities {
@@ -81,5 +86,10 @@
   
   .neon-border {
     @apply border border-blue-400 shadow-[0_0_5px_#3b82f6,0_0_10px_rgba(59,130,246,0.5)];
+  }
+  
+  /* Input field styling */
+  .input-dark {
+    @apply bg-black text-white border-white/20;
   }
 }
