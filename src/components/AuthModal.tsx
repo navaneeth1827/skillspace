@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Loader2 } from "lucide-react";
 import Button from "./Button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -16,6 +19,9 @@ interface AuthModalProps {
 
 const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
+  const { toast } = useToast();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -25,17 +31,39 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [experience, setExperience] = useState("");
   const [bio, setBio] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
-  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Login successful",
-      description: "Welcome back to Nexus!"
-    });
-    onClose();
-    // Navigate to dashboard after successful login
-    navigate('/dashboard');
+    setIsLoading(true);
+    
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        toast({
+          title: "Login failed",
+          description: error.message || "Please check your credentials and try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "Login successful",
+        description: "Welcome back to SkillSpace!"
+      });
+      onClose();
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleNextStep = (e: React.FormEvent) => {
@@ -43,17 +71,54 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     setSignupStep(2);
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Account created",
-      description: "Welcome to Freelancer Hub Nexus!"
-    });
-    onClose();
-    // Navigate to dashboard after successful signup
-    navigate('/dashboard');
-    // Reset the state for next time
-    setSignupStep(1);
+    setIsLoading(true);
+    
+    try {
+      // Prepare user metadata
+      const userData = {
+        full_name: name,
+        user_type: isFreelancer ? 'freelancer' : 'client',
+      };
+      
+      // Add freelancer specific data
+      if (isFreelancer) {
+        Object.assign(userData, {
+          skills: skills.split(',').map(skill => skill.trim()),
+          experience: parseInt(experience),
+          bio,
+          hourly_rate: parseInt(hourlyRate)
+        });
+      }
+      
+      const { error } = await signUp(email, password, userData);
+      
+      if (error) {
+        toast({
+          title: "Signup failed",
+          description: error.message || "Please check your information and try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "Account created",
+        description: "Welcome to SkillSpace! Check your email to confirm your account."
+      });
+      onClose();
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast({
+        title: "Signup failed",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+      setSignupStep(1); // Reset step when done or on error
+    }
   };
 
   const handleCloseModal = () => {
@@ -65,7 +130,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     <Dialog open={isOpen} onOpenChange={handleCloseModal}>
       <DialogContent className="sm:max-w-[425px] backdrop-blur-xl bg-navy-light border border-white/10">
         <DialogHeader>
-          <DialogTitle className="text-xl text-center">Welcome to Nexus</DialogTitle>
+          <DialogTitle className="text-xl text-center">Welcome to SkillSpace</DialogTitle>
         </DialogHeader>
         
         <Tabs defaultValue="login" className="w-full">
@@ -86,6 +151,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   placeholder="yourname@example.com" 
                   className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                   required
+                  disabled={isLoading}
                 />
               </div>
               
@@ -99,11 +165,23 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   placeholder="••••••••" 
                   className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                   required
+                  disabled={isLoading}
                 />
               </div>
               
-              <Button type="submit" className="w-full bg-navy-accent text-navy hover:bg-navy-accent/90">
-                Login
+              <Button 
+                type="submit" 
+                className="w-full bg-navy-accent text-navy hover:bg-navy-accent/90"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Logging in...
+                  </>
+                ) : (
+                  "Login"
+                )}
               </Button>
             </form>
           </TabsContent>
@@ -120,6 +198,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     placeholder="John Doe" 
                     className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -133,6 +212,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     placeholder="yourname@example.com" 
                     className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -146,6 +226,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     placeholder="••••••••" 
                     className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                     required
+                    disabled={isLoading}
+                    minLength={6}
                   />
                 </div>
                 
@@ -156,11 +238,16 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     onCheckedChange={(checked) => 
                       setIsFreelancer(checked as boolean)
                     }
+                    disabled={isLoading}
                   />
                   <Label htmlFor="freelancer">I am a freelancer</Label>
                 </div>
                 
-                <Button type="submit" className="w-full bg-navy-accent text-navy hover:bg-navy-accent/90">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-navy-accent text-navy hover:bg-navy-accent/90"
+                  disabled={isLoading}
+                >
                   {isFreelancer ? "Next: Profile Details" : "Create Account"}
                 </Button>
               </form>
@@ -175,6 +262,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     placeholder="JavaScript, React, UI Design" 
                     className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -190,6 +278,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     placeholder="5" 
                     className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -202,6 +291,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     placeholder="Tell clients about yourself and your expertise..." 
                     className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent resize-none min-h-[80px]"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -216,6 +306,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     placeholder="50" 
                     className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -225,14 +316,23 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     variant="outline"
                     className="flex-1 border-navy-accent/30 hover:bg-navy-accent/10"
                     onClick={() => setSignupStep(1)}
+                    disabled={isLoading}
                   >
                     Back
                   </Button>
                   <Button 
                     type="submit" 
                     className="flex-1 bg-navy-accent text-navy hover:bg-navy-accent/90"
+                    disabled={isLoading}
                   >
-                    Create Account
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      "Create Account"
+                    )}
                   </Button>
                 </div>
               </form>

@@ -4,12 +4,15 @@ import { Link, useLocation } from "react-router-dom";
 import { Calendar, Menu, MessageSquare, Settings, X, ListTodo, Users } from "lucide-react";
 import Button from "./Button";
 import AuthModal from "./AuthModal";
+import UserMenu from "./UserMenu";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
@@ -64,15 +67,22 @@ const Navbar = () => {
             >
               <Settings size={20} />
             </Link>
-            <Button 
-              variant="ghost" 
-              onClick={() => setIsAuthModalOpen(true)}
-            >
-              Login
-            </Button>
-            <Button onClick={() => setIsAuthModalOpen(true)}>
-              Sign Up
-            </Button>
+            
+            {user ? (
+              <UserMenu />
+            ) : (
+              <>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setIsAuthModalOpen(true)}
+                >
+                  Login
+                </Button>
+                <Button onClick={() => setIsAuthModalOpen(true)}>
+                  Sign Up
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -114,27 +124,53 @@ const Navbar = () => {
                 <Settings size={18} />
                 Settings
               </Link>
-              <div className="flex flex-col gap-4 mt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsAuthModalOpen(true);
-                    closeMenu();
-                  }}
-                  className="w-full"
-                >
-                  Login
-                </Button>
-                <Button 
-                  onClick={() => {
-                    setIsAuthModalOpen(true);
-                    closeMenu();
-                  }}
-                  className="w-full"
-                >
-                  Sign Up
-                </Button>
-              </div>
+              
+              {user ? (
+                <div className="flex flex-col gap-4 mt-4">
+                  <Link
+                    to="/profile"
+                    className="text-lg transition-colors hover:text-primary flex items-center gap-2"
+                    onClick={closeMenu}
+                  >
+                    <User size={18} />
+                    Profile
+                  </Link>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      closeMenu();
+                      const { signOut } = useAuth();
+                      signOut();
+                    }}
+                    className="w-full"
+                  >
+                    <LogOut size={18} className="mr-2" />
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4 mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsAuthModalOpen(true);
+                      closeMenu();
+                    }}
+                    className="w-full"
+                  >
+                    Login
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setIsAuthModalOpen(true);
+                      closeMenu();
+                    }}
+                    className="w-full"
+                  >
+                    Sign Up
+                  </Button>
+                </div>
+              )}
             </nav>
           </div>
         )}
