@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Calendar, Menu, MessageSquare, Settings, X, ListTodo, Users } from "lucide-react";
+import { Calendar, Menu, MessageSquare, Settings, X, ListTodo, Users, User, LogOut } from "lucide-react";
 import Button from "./Button";
 import AuthModal from "./AuthModal";
 import UserMenu from "./UserMenu";
