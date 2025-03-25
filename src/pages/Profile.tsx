@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -27,8 +26,6 @@ type ProfileData = {
   user_type?: string;
 };
 
-// Sample data for education, experience, portfolio, and completed jobs
-// These would ideally come from the database in a real implementation
 const sampleData = {
   education: [
     {
@@ -98,7 +95,6 @@ const Profile = () => {
   const [isAvailableForWork, setIsAvailableForWork] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Profile state
   const [profileData, setProfileData] = useState<ProfileData>({
     full_name: "",
     title: "",
@@ -110,7 +106,6 @@ const Profile = () => {
     user_type: "freelancer"
   });
   
-  // Form states
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -119,7 +114,6 @@ const Profile = () => {
   const [skillInput, setSkillInput] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   
-  // Fetch user profile data
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
@@ -138,7 +132,6 @@ const Profile = () => {
         }
         
         if (data) {
-          // Convert skills from string to array if needed
           const skillsArray = Array.isArray(data.skills) 
             ? data.skills 
             : data.skills 
@@ -149,7 +142,6 @@ const Profile = () => {
               
           const profileDataFormatted: ProfileData = {
             full_name: data.full_name || "",
-            title: data.title || "", // This might be null from DB
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
@@ -160,7 +152,7 @@ const Profile = () => {
           
           setProfileData(profileDataFormatted);
           setName(profileDataFormatted.full_name);
-          setTitle(profileDataFormatted.title || "");
+          setTitle("");
           setLocation(profileDataFormatted.location || "");
           setBio(profileDataFormatted.bio || "");
           setHourlyRate(profileDataFormatted.hourly_rate?.toString() || "");
@@ -180,15 +172,15 @@ const Profile = () => {
     if (!user) return;
     
     try {
-      // Convert skills array to string for Supabase if needed
+      const skillsString = skills.join(',');
+      
       const updates = {
         id: user.id,
         full_name: name,
-        title,
         location,
         bio,
         hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
-        skills: skills,
+        skills: skillsString,
         updated_at: new Date().toISOString()
       };
       
@@ -206,11 +198,9 @@ const Profile = () => {
         return;
       }
       
-      // Update local state with new data
       setProfileData(prev => ({
         ...prev,
         full_name: name,
-        title,
         location,
         bio,
         hourly_rate: hourlyRate ? parseFloat(hourlyRate) : undefined,
@@ -291,7 +281,6 @@ const Profile = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Profile Sidebar */}
               <div className="col-span-1">
                 <div className="glass-card p-6 mb-6">
                   <div className="flex flex-col items-center text-center">
@@ -392,7 +381,6 @@ const Profile = () => {
                   </div>
                 </div>
                 
-                {/* Skills Section */}
                 <div className="glass-card p-6">
                   <h3 className="font-semibold mb-3">Skills</h3>
                   
@@ -441,7 +429,6 @@ const Profile = () => {
                 </div>
               </div>
               
-              {/* Main Profile Content */}
               <div className="col-span-2">
                 <Tabs defaultValue="about">
                   <TabsList className="grid w-full grid-cols-4">
@@ -451,7 +438,6 @@ const Profile = () => {
                     <TabsTrigger value="reviews">Reviews</TabsTrigger>
                   </TabsList>
                   
-                  {/* About Tab */}
                   <TabsContent value="about">
                     <div className="glass-card p-6">
                       <h3 className="font-semibold mb-3">About Me</h3>
@@ -486,7 +472,6 @@ const Profile = () => {
                     </div>
                   </TabsContent>
                   
-                  {/* Portfolio Tab */}
                   <TabsContent value="portfolio">
                     <div className="glass-card p-6">
                       <div className="flex items-center justify-between mb-4">
@@ -530,7 +515,6 @@ const Profile = () => {
                     </div>
                   </TabsContent>
                   
-                  {/* Experience Tab */}
                   <TabsContent value="experience">
                     <div className="glass-card p-6">
                       <div className="flex items-center justify-between mb-4">
@@ -561,7 +545,6 @@ const Profile = () => {
                     </div>
                   </TabsContent>
                   
-                  {/* Reviews Tab */}
                   <TabsContent value="reviews">
                     <div className="glass-card p-6">
                       <h3 className="font-semibold mb-6">Client Reviews</h3>
