@@ -138,13 +138,33 @@ const Profile = () => {
         }
         
         if (data) {
-          setProfileData(data);
-          setName(data.full_name || "");
-          setTitle(data.title || "");
-          setLocation(data.location || "");
-          setBio(data.bio || "");
-          setHourlyRate(data.hourly_rate?.toString() || "");
-          setSkills(data.skills || []);
+          // Convert skills from string to array if needed
+          const skillsArray = Array.isArray(data.skills) 
+            ? data.skills 
+            : data.skills 
+              ? typeof data.skills === 'string' 
+                ? data.skills.split(',').map(s => s.trim()) 
+                : []
+              : [];
+              
+          const profileDataFormatted: ProfileData = {
+            full_name: data.full_name || "",
+            title: data.title || "", // This might be null from DB
+            location: data.location || "",
+            bio: data.bio || "",
+            hourly_rate: data.hourly_rate || 0,
+            skills: skillsArray,
+            avatar_url: data.avatar_url,
+            user_type: data.user_type || "freelancer"
+          };
+          
+          setProfileData(profileDataFormatted);
+          setName(profileDataFormatted.full_name);
+          setTitle(profileDataFormatted.title || "");
+          setLocation(profileDataFormatted.location || "");
+          setBio(profileDataFormatted.bio || "");
+          setHourlyRate(profileDataFormatted.hourly_rate?.toString() || "");
+          setSkills(profileDataFormatted.skills || []);
         }
       } catch (error) {
         console.error('Error:', error);
@@ -160,6 +180,7 @@ const Profile = () => {
     if (!user) return;
     
     try {
+      // Convert skills array to string for Supabase if needed
       const updates = {
         id: user.id,
         full_name: name,
@@ -167,8 +188,8 @@ const Profile = () => {
         location,
         bio,
         hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
-        skills,
-        updated_at: new Date()
+        skills: skills,
+        updated_at: new Date().toISOString()
       };
       
       const { error } = await supabase
@@ -188,7 +209,12 @@ const Profile = () => {
       // Update local state with new data
       setProfileData(prev => ({
         ...prev,
-        ...updates
+        full_name: name,
+        title,
+        location,
+        bio,
+        hourly_rate: hourlyRate ? parseFloat(hourlyRate) : undefined,
+        skills
       }));
       
       toast({
