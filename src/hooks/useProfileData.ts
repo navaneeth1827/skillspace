@@ -48,18 +48,33 @@ export function useProfileData(userId: string | undefined) {
         // Fetch reviews (as freelancer)
         const { data: reviewsData, error: reviewsError } = await supabase
           .from('reviews')
-          .select(`
-            *,
-            profiles!reviews_client_id_fkey(full_name)
-          `)
+          .select('*')
           .eq('freelancer_id', userId);
           
         if (reviewsError) throw reviewsError;
         
+        // Get client names separately instead of using a join
+        const clientIds = reviewsData?.map(review => review.client_id) || [];
+        let clientNames: Record<string, string> = {};
+        
+        if (clientIds.length > 0) {
+          const { data: clientData, error: clientError } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', clientIds);
+            
+          if (!clientError && clientData) {
+            clientNames = clientData.reduce((acc: Record<string, string>, client) => {
+              acc[client.id] = client.full_name;
+              return acc;
+            }, {});
+          }
+        }
+        
         // Map the reviews data to include client name
         const formattedReviews = reviewsData?.map(review => ({
           ...review,
-          client_name: review.profiles?.full_name
+          client_name: clientNames[review.client_id] || 'Unknown Client'
         })) || [];
         
         setReviews(formattedReviews);
