@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Calendar, Menu, MessageSquare, Settings, X, ListTodo, Users, User, LogOut } from "lucide-react";
 import Button from "./Button";
 import AuthModal from "./AuthModal";
@@ -12,19 +12,34 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
 
-  const navLinks = [
+  // Routes that are accessible to both logged-in and non-logged-in users
+  const publicNavLinks = [
     { text: "Home", href: "/" },
+  ];
+
+  // Routes that are accessible only to logged-in users
+  const privateNavLinks = [
     { text: "Find a Job", href: "/find-job" },
     { text: "Post a Job", href: "/post-job" },
     { text: "Community", href: "/community", icon: <Users size={18} /> },
     { text: "Calendar", href: "/calendar", icon: <Calendar size={18} /> },
     { text: "Tasks", href: "/tasks", icon: <ListTodo size={18} /> },
   ];
+
+  // Display different navigation links based on auth status
+  const navLinks = user ? [...publicNavLinks, ...privateNavLinks] : publicNavLinks;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+    closeMenu();
+  };
 
   return (
     <>
@@ -58,15 +73,17 @@ const Navbar = () => {
 
           {/* Desktop Auth Buttons and Settings */}
           <div className="hidden md:flex items-center gap-4">
-            <Link 
-              to="/settings"
-              className={cn(
-                "text-sm transition-colors hover:text-primary",
-                location.pathname === "/settings" ? "text-primary" : "text-muted-foreground"
-              )}
-            >
-              <Settings size={20} />
-            </Link>
+            {user && (
+              <Link 
+                to="/settings"
+                className={cn(
+                  "text-sm transition-colors hover:text-primary",
+                  location.pathname === "/settings" ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                <Settings size={20} />
+              </Link>
+            )}
             
             {user ? (
               <UserMenu />
@@ -113,17 +130,20 @@ const Navbar = () => {
                   {link.text}
                 </Link>
               ))}
-              <Link
-                to="/settings"
-                className={cn(
-                  "text-lg transition-colors hover:text-primary flex items-center gap-2",
-                  location.pathname === "/settings" ? "text-primary" : "text-muted-foreground"
-                )}
-                onClick={closeMenu}
-              >
-                <Settings size={18} />
-                Settings
-              </Link>
+              
+              {user && (
+                <Link
+                  to="/settings"
+                  className={cn(
+                    "text-lg transition-colors hover:text-primary flex items-center gap-2",
+                    location.pathname === "/settings" ? "text-primary" : "text-muted-foreground"
+                  )}
+                  onClick={closeMenu}
+                >
+                  <Settings size={18} />
+                  Settings
+                </Link>
+              )}
               
               {user ? (
                 <div className="flex flex-col gap-4 mt-4">
@@ -137,11 +157,7 @@ const Navbar = () => {
                   </Link>
                   <Button 
                     variant="outline" 
-                    onClick={() => {
-                      closeMenu();
-                      const { signOut } = useAuth();
-                      signOut();
-                    }}
+                    onClick={handleSignOut}
                     className="w-full"
                   >
                     <LogOut size={18} className="mr-2" />
