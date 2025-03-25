@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Card,
@@ -14,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { UserCircle, Bell, Moon, Sun, Shield, LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import GraphicAvatar, { AvatarSelector, AvatarStyle } from "@/components/GraphicAvatar";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
 import { useAuth } from "@/contexts/AuthContext";

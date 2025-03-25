@@ -1,13 +1,17 @@
-
 export type ProfileData = {
   full_name: string;
   title?: string;
   location?: string;
   bio?: string;
   hourly_rate?: number;
-  skills?: string[];
+  skills?: string[] | string;
   avatar_url?: string | null;
   user_type?: string;
+  company_name?: string;
+  website?: string;
+  created_at?: string;
+  updated_at?: string;
+  id?: string;
 };
 
 export type PortfolioItem = {

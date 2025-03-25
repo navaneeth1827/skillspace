@@ -18,6 +18,7 @@ import ExperienceSection from "@/components/profile/ExperienceSection";
 import ReviewsSection from "@/components/profile/ReviewsSection";
 import AboutSection from "@/components/profile/AboutSection";
 import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
+import UserAvatar from "@/components/UserAvatar";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -105,7 +106,7 @@ const Profile = () => {
           setLocation(profileDataFormatted.location || "");
           setBio(profileDataFormatted.bio || "");
           setHourlyRate(profileDataFormatted.hourly_rate?.toString() || "");
-          setSkills(profileDataFormatted.skills || []);
+          setSkills(Array.isArray(profileDataFormatted.skills) ? profileDataFormatted.skills : []);
         }
       } catch (error) {
         console.error('Error:', error);

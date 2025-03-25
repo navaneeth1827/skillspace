@@ -37,7 +37,16 @@ const UserMenu = () => {
         }
         
         if (data) {
-          setProfileData(data as ProfileData);
+          // Convert to ProfileData and ensure skills is proper format
+          const profileDataConverted: ProfileData = {
+            ...data,
+            // Convert skills to array if it's a string
+            skills: typeof data.skills === 'string' && data.skills 
+              ? data.skills.split(',').map(s => s.trim()) 
+              : data.skills || []
+          };
+          
+          setProfileData(profileDataConverted);
         }
       } catch (error) {
         console.error('Error:', error);
