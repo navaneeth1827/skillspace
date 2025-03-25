@@ -54,6 +54,75 @@ export type Database = {
           },
         ]
       }
+      education: {
+        Row: {
+          created_at: string | null
+          degree: string
+          id: string
+          school: string
+          updated_at: string | null
+          user_id: string
+          year_range: string
+        }
+        Insert: {
+          created_at?: string | null
+          degree: string
+          id?: string
+          school: string
+          updated_at?: string | null
+          user_id: string
+          year_range: string
+        }
+        Update: {
+          created_at?: string | null
+          degree?: string
+          id?: string
+          school?: string
+          updated_at?: string | null
+          user_id?: string
+          year_range?: string
+        }
+        Relationships: []
+      }
+      experience: {
+        Row: {
+          company: string
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          location: string | null
+          start_date: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company: string
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          start_date: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company?: string
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          start_date?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           budget_max: number | null
@@ -137,6 +206,39 @@ export type Database = {
           },
         ]
       }
+      portfolio: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          link: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          link?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          link?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -179,6 +281,39 @@ export type Database = {
           updated_at?: string | null
           user_type?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          client_id: string
+          completed_date: string | null
+          created_at: string | null
+          freelancer_id: string
+          id: string
+          job_title: string
+          rating: number
+          review_text: string | null
+        }
+        Insert: {
+          client_id: string
+          completed_date?: string | null
+          created_at?: string | null
+          freelancer_id: string
+          id?: string
+          job_title: string
+          rating: number
+          review_text?: string | null
+        }
+        Update: {
+          client_id?: string
+          completed_date?: string | null
+          created_at?: string | null
+          freelancer_id?: string
+          id?: string
+          job_title?: string
+          rating?: number
+          review_text?: string | null
         }
         Relationships: []
       }

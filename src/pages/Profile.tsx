@@ -1,92 +1,24 @@
+
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Button from "@/components/Button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import AnimatedCard from "@/components/AnimatedCard";
-import { Briefcase, DollarSign, Edit, MapPin, Plus, Star, Trophy, User } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Briefcase, DollarSign, Edit, MapPin, Plus, Star, User } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import UserAvatar from "@/components/UserAvatar";
-
-type ProfileData = {
-  full_name: string;
-  title?: string;
-  location?: string;
-  bio?: string;
-  hourly_rate?: number;
-  skills?: string[];
-  avatar_url?: string | null;
-  user_type?: string;
-};
-
-const sampleData = {
-  education: [
-    {
-      degree: "Bachelor of Science in Computer Science",
-      school: "University of California, Berkeley",
-      year: "2016 - 2020"
-    }
-  ],
-  experience: [
-    {
-      title: "Senior Frontend Developer",
-      company: "TechCorp Inc.",
-      location: "San Francisco, CA",
-      period: "Jan 2022 - Present",
-      description: "Lead frontend development for multiple projects. Implemented performance optimizations that resulted in 40% faster page loads."
-    },
-    {
-      title: "Frontend Developer",
-      company: "StartupX",
-      location: "Remote",
-      period: "Mar 2020 - Dec 2021",
-      description: "Built responsive user interfaces using React and TypeScript. Collaborated with UX designers to implement pixel-perfect designs."
-    }
-  ],
-  portfolio: [
-    {
-      title: "E-commerce Platform",
-      description: "A modern e-commerce platform built with React, Next.js and GraphQL",
-      image: "/placeholder.svg",
-      link: "#"
-    },
-    {
-      title: "Project Management Tool",
-      description: "Collaborative tool for teams to manage projects efficiently",
-      image: "/placeholder.svg",
-      link: "#"
-    },
-    {
-      title: "Healthcare Dashboard",
-      description: "Analytics dashboard for healthcare providers",
-      image: "/placeholder.svg",
-      link: "#"
-    }
-  ],
-  completedJobs: [
-    {
-      title: "React Dashboard UI Development",
-      client: "DataViz Corp",
-      completedDate: "Aug 2023",
-      rating: 5,
-      review: "John delivered exceptional work. He understood our requirements perfectly and provided valuable suggestions. Will definitely work with him again."
-    },
-    {
-      title: "E-commerce Website Optimization",
-      client: "Fashion Retailer",
-      completedDate: "May 2023",
-      rating: 4.8,
-      review: "Great work on the performance optimization. Our page load times decreased significantly."
-    }
-  ]
-};
+import { ProfileData } from "@/types/profile";
+import { useProfileData } from "@/hooks/useProfileData";
+import PortfolioSection from "@/components/profile/PortfolioSection";
+import ExperienceSection from "@/components/profile/ExperienceSection";
+import ReviewsSection from "@/components/profile/ReviewsSection";
+import AboutSection from "@/components/profile/AboutSection";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -114,6 +46,23 @@ const Profile = () => {
   const [skillInput, setSkillInput] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   
+  const {
+    isLoading: isProfileDataLoading,
+    portfolio,
+    experience,
+    education,
+    reviews,
+    addPortfolioItem,
+    updatePortfolioItem,
+    deletePortfolioItem,
+    addExperienceItem,
+    updateExperienceItem,
+    deleteExperienceItem,
+    addEducationItem,
+    updateEducationItem,
+    deleteEducationItem
+  } = useProfileData(user?.id);
+  
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
@@ -136,12 +85,13 @@ const Profile = () => {
             ? data.skills 
             : data.skills 
               ? typeof data.skills === 'string' 
-                ? data.skills.split(',').map(s => s.trim()) 
+                ? data.skills.split(',').map(s => s.trim()).filter(Boolean)
                 : []
               : [];
               
           const profileDataFormatted: ProfileData = {
             full_name: data.full_name || "",
+            title: "",
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
@@ -152,7 +102,7 @@ const Profile = () => {
           
           setProfileData(profileDataFormatted);
           setName(profileDataFormatted.full_name);
-          setTitle("");
+          setTitle(profileDataFormatted.title || "");
           setLocation(profileDataFormatted.location || "");
           setBio(profileDataFormatted.bio || "");
           setHourlyRate(profileDataFormatted.hourly_rate?.toString() || "");
@@ -201,6 +151,7 @@ const Profile = () => {
       setProfileData(prev => ({
         ...prev,
         full_name: name,
+        title,
         location,
         bio,
         hourly_rate: hourlyRate ? parseFloat(hourlyRate) : undefined,
@@ -232,6 +183,49 @@ const Profile = () => {
   
   const handleRemoveSkill = (skill: string) => {
     setSkills(skills.filter(s => s !== skill));
+  };
+
+  const handleUpdateBio = async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          bio,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+        
+      if (error) {
+        toast({
+          title: "Error updating bio",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      setProfileData(prev => ({
+        ...prev,
+        bio
+      }));
+      
+      toast({
+        title: "Bio updated",
+        description: "Your bio has been successfully updated.",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating bio:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
   };
 
   if (!user) {
@@ -275,7 +269,7 @@ const Profile = () => {
             )}
           </div>
           
-          {isLoading ? (
+          {isLoading || isProfileDataLoading ? (
             <div className="flex justify-center items-center py-20">
               <div className="spinner"></div>
             </div>
@@ -368,13 +362,15 @@ const Profile = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Jobs Completed:</span>
-                        <span className="text-sm font-medium">{sampleData.completedJobs.length}</span>
+                        <span className="text-sm font-medium">{reviews.length}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Rating:</span>
                         <span className="text-sm font-medium flex items-center">
-                          4.9
-                          <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 ml-1" />
+                          {reviews.length > 0 
+                            ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) 
+                            : "N/A"}
+                          {reviews.length > 0 && <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 ml-1" />}
                         </span>
                       </div>
                     </div>
@@ -439,155 +435,42 @@ const Profile = () => {
                   </TabsList>
                   
                   <TabsContent value="about">
-                    <div className="glass-card p-6">
-                      <h3 className="font-semibold mb-3">About Me</h3>
-                      
-                      {isEditing ? (
-                        <Textarea
-                          value={bio}
-                          onChange={(e) => setBio(e.target.value)}
-                          className="min-h-[150px]"
-                          placeholder="Tell us about yourself, your experience, and what you're passionate about..."
-                        />
-                      ) : (
-                        <p className="text-muted-foreground whitespace-pre-line">
-                          {profileData.bio || "No bio yet. Click Edit Profile to add one."}
-                        </p>
-                      )}
-                      
-                      <h3 className="font-semibold mt-6 mb-3">Education</h3>
-                      {sampleData.education.map((edu, index) => (
-                        <div key={index} className="mb-4">
-                          <h4 className="font-medium">{edu.degree}</h4>
-                          <p className="text-muted-foreground text-sm">{edu.school}</p>
-                          <p className="text-muted-foreground text-sm">{edu.year}</p>
-                        </div>
-                      ))}
-                      {isEditing && (
-                        <Button variant="outline" size="sm" className="mt-2">
-                          <Plus size={14} className="mr-1" />
-                          Add Education
-                        </Button>
-                      )}
-                    </div>
+                    <AboutSection
+                      bio={bio}
+                      education={education}
+                      isEditing={isEditing}
+                      onBioChange={setBio}
+                      onUpdateBio={handleUpdateBio}
+                      onAddEducation={addEducationItem}
+                      onUpdateEducation={updateEducationItem}
+                      onDeleteEducation={deleteEducationItem}
+                    />
                   </TabsContent>
                   
                   <TabsContent value="portfolio">
-                    <div className="glass-card p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold">Portfolio Projects</h3>
-                        {isEditing && (
-                          <Button size="sm">
-                            <Plus size={14} className="mr-1" />
-                            Add Project
-                          </Button>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {sampleData.portfolio.map((project, index) => (
-                          <AnimatedCard
-                            key={index}
-                            className="hover-shadow overflow-hidden"
-                            delay={`${index * 0.1}s`}
-                          >
-                            <div className="aspect-video w-full relative overflow-hidden rounded-t-lg">
-                              <img 
-                                src={project.image} 
-                                alt={project.title} 
-                                className="w-full h-full object-cover transition-transform hover:scale-105 duration-300" 
-                              />
-                            </div>
-                            <div className="p-4">
-                              <h4 className="font-medium text-lg">{project.title}</h4>
-                              <p className="text-muted-foreground text-sm mt-1">{project.description}</p>
-                              <div className="mt-3">
-                                <Button size="sm" asChild>
-                                  <a href={project.link} target="_blank" rel="noopener noreferrer">
-                                    View Project
-                                  </a>
-                                </Button>
-                              </div>
-                            </div>
-                          </AnimatedCard>
-                        ))}
-                      </div>
-                    </div>
+                    <PortfolioSection
+                      items={portfolio}
+                      isEditing={isEditing}
+                      onAdd={addPortfolioItem}
+                      onUpdate={updatePortfolioItem}
+                      onDelete={deletePortfolioItem}
+                    />
                   </TabsContent>
                   
                   <TabsContent value="experience">
-                    <div className="glass-card p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold">Work Experience</h3>
-                        {isEditing && (
-                          <Button size="sm">
-                            <Plus size={14} className="mr-1" />
-                            Add Experience
-                          </Button>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-6">
-                        {sampleData.experience.map((exp, index) => (
-                          <div key={index} className="relative pl-6 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-px before:bg-navy-accent">
-                            <h4 className="font-medium">{exp.title}</h4>
-                            <p className="text-navy-accent text-sm">{exp.company}</p>
-                            <div className="flex items-center text-sm text-muted-foreground mt-1">
-                              <MapPin size={12} className="mr-1" />
-                              <span>{exp.location}</span>
-                              <span className="mx-2">•</span>
-                              <span>{exp.period}</span>
-                            </div>
-                            <p className="text-muted-foreground mt-2">{exp.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <ExperienceSection
+                      items={experience}
+                      isEditing={isEditing}
+                      onAdd={addExperienceItem}
+                      onUpdate={updateExperienceItem}
+                      onDelete={deleteExperienceItem}
+                    />
                   </TabsContent>
                   
                   <TabsContent value="reviews">
-                    <div className="glass-card p-6">
-                      <h3 className="font-semibold mb-6">Client Reviews</h3>
-                      
-                      <div className="space-y-6">
-                        {sampleData.completedJobs.map((job, index) => (
-                          <div key={index} className="border-b border-white/10 last:border-0 pb-6 last:pb-0">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <h4 className="font-medium">{job.title}</h4>
-                                <p className="text-navy-accent text-sm">{job.client}</p>
-                                <p className="text-muted-foreground text-sm">{job.completedDate}</p>
-                              </div>
-                              <div className="flex items-center">
-                                <span className="mr-1 font-medium">{job.rating}</span>
-                                <div className="flex">
-                                  {Array.from({ length: 5 }).map((_, i) => (
-                                    <Star 
-                                      key={i} 
-                                      size={14} 
-                                      className={`${i < Math.floor(job.rating) ? "fill-yellow-500 text-yellow-500" : "text-gray-500"}`} 
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="mt-3">
-                              <p className="text-muted-foreground italic">"{job.review}"</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {sampleData.completedJobs.length === 0 && (
-                        <div className="text-center py-8">
-                          <Trophy className="h-12 w-12 text-navy-accent mx-auto mb-3" />
-                          <h4 className="text-lg font-medium">No reviews yet</h4>
-                          <p className="text-muted-foreground mt-1">
-                            Complete jobs to start collecting client reviews.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    <ReviewsSection
+                      reviews={reviews}
+                    />
                   </TabsContent>
                 </Tabs>
               </div>
