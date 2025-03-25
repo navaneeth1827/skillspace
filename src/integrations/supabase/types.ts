@@ -146,6 +146,8 @@ export type Database = {
           full_name: string
           hourly_rate: number | null
           id: string
+          location: string | null
+          skills: string | null
           updated_at: string | null
           user_type: string
           website: string | null
@@ -158,6 +160,8 @@ export type Database = {
           full_name: string
           hourly_rate?: number | null
           id: string
+          location?: string | null
+          skills?: string | null
           updated_at?: string | null
           user_type: string
           website?: string | null
@@ -170,6 +174,8 @@ export type Database = {
           full_name?: string
           hourly_rate?: number | null
           id?: string
+          location?: string | null
+          skills?: string | null
           updated_at?: string | null
           user_type?: string
           website?: string | null

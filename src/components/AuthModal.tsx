@@ -1,16 +1,11 @@
-
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import Button from "./Button";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,24 +13,17 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isFreelancer, setIsFreelancer] = useState(true);
-  const [signupStep, setSignupStep] = useState(1);
-  const [skills, setSkills] = useState("");
-  const [experience, setExperience] = useState("");
-  const [bio, setBio] = useState("");
-  const [hourlyRate, setHourlyRate] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
     
     try {
       const { error } = await signIn(email, password);
@@ -43,300 +31,198 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       if (error) {
         toast({
           title: "Login failed",
-          description: error.message || "Please check your credentials and try again.",
-          variant: "destructive"
+          description: error.message,
+          variant: "destructive",
         });
         return;
       }
       
       toast({
-        title: "Login successful",
-        description: "Welcome back to SkillSpace!"
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
       });
+      
       onClose();
-      navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error) {
+      console.error("Login error:", error);
       toast({
-        title: "Login failed",
-        description: error.message || "An unexpected error occurred.",
-        variant: "destructive"
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-
-  const handleNextStep = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSignupStep(2);
-  };
-
+  
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
+    
+    if (!fullName) {
+      toast({
+        title: "Missing information",
+        description: "Please provide your full name.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
     
     try {
-      // Prepare user metadata
-      const userData = {
-        full_name: name,
-        user_type: isFreelancer ? 'freelancer' : 'client',
-      };
-      
-      // Add freelancer specific data
-      if (isFreelancer) {
-        Object.assign(userData, {
-          skills: skills.split(',').map(skill => skill.trim()),
-          experience: parseInt(experience),
-          bio,
-          hourly_rate: parseInt(hourlyRate)
-        });
-      }
-      
-      const { error } = await signUp(email, password, userData);
+      const { error } = await signUp(email, password, { 
+        full_name: fullName
+      });
       
       if (error) {
         toast({
           title: "Signup failed",
-          description: error.message || "Please check your information and try again.",
-          variant: "destructive"
+          description: error.message,
+          variant: "destructive",
         });
         return;
       }
       
       toast({
         title: "Account created",
-        description: "Welcome to SkillSpace! Check your email to confirm your account."
+        description: "Your account has been created successfully. Please verify your email to continue.",
       });
+      
       onClose();
-      navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error) {
+      console.error("Signup error:", error);
       toast({
-        title: "Signup failed",
-        description: error.message || "An unexpected error occurred.",
-        variant: "destructive"
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
-      setSignupStep(1); // Reset step when done or on error
+      setLoading(false);
     }
   };
-
-  const handleCloseModal = () => {
-    setSignupStep(1); // Reset step when closing
-    onClose();
+  
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setFullName("");
   };
-
+  
   return (
-    <Dialog open={isOpen} onOpenChange={handleCloseModal}>
-      <DialogContent className="sm:max-w-[425px] backdrop-blur-xl bg-navy-light border border-white/10">
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        onClose();
+        resetForm();
+      }
+    }}>
+      <DialogContent className="sm:max-w-[425px] glass-card">
         <DialogHeader>
-          <DialogTitle className="text-xl text-center">Welcome to SkillSpace</DialogTitle>
+          <DialogTitle className="text-gradient font-bold text-2xl text-center mb-2">
+            SkillSpace
+          </DialogTitle>
+          <DialogDescription className="text-center">
+            Connect with top talent and opportunities in one place
+          </DialogDescription>
         </DialogHeader>
         
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+        <Tabs defaultValue="login" value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "signup")}>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="login">Login</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
           
           <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input 
                   id="email" 
                   type="email" 
+                  placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="yourname@example.com" 
-                  className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                   required
-                  disabled={isLoading}
                 />
               </div>
-              
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password">Password</Label>
+                  <a href="#" className="text-xs text-primary hover:underline">
+                    Forgot password?
+                  </a>
+                </div>
                 <Input 
                   id="password" 
-                  type="password"
+                  type="password" 
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" 
-                  className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
                   required
-                  disabled={isLoading}
                 />
               </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-navy-accent text-navy hover:bg-navy-accent/90"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Logging in...
-                  </>
-                ) : (
-                  "Login"
-                )}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Logging in..." : "Login"}
               </Button>
+              <div className="text-center text-sm">
+                Don't have an account?{" "}
+                <button 
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => setActiveTab("signup")}
+                >
+                  Sign up
+                </button>
+              </div>
             </form>
           </TabsContent>
           
           <TabsContent value="signup">
-            {signupStep === 1 ? (
-              <form onSubmit={handleNextStep} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input 
-                    id="name" 
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="John Doe" 
-                    className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email-signup">Email</Label>
-                  <Input 
-                    id="email-signup" 
-                    type="email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="yourname@example.com" 
-                    className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password-signup">Password</Label>
-                  <Input 
-                    id="password-signup" 
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" 
-                    className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
-                    required
-                    disabled={isLoading}
-                    minLength={6}
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="freelancer" 
-                    checked={isFreelancer}
-                    onCheckedChange={(checked) => 
-                      setIsFreelancer(checked as boolean)
-                    }
-                    disabled={isLoading}
-                  />
-                  <Label htmlFor="freelancer">I am a freelancer</Label>
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full bg-navy-accent text-navy hover:bg-navy-accent/90"
-                  disabled={isLoading}
+            <form onSubmit={handleSignup} className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input 
+                  id="fullName" 
+                  placeholder="Enter your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signupEmail">Email</Label>
+                <Input 
+                  id="signupEmail" 
+                  type="email" 
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signupPassword">Password</Label>
+                <Input 
+                  id="signupPassword" 
+                  type="password" 
+                  placeholder="Create a password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Creating account..." : "Create Account"}
+              </Button>
+              <div className="text-center text-sm">
+                Already have an account?{" "}
+                <button 
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => setActiveTab("login")}
                 >
-                  {isFreelancer ? "Next: Profile Details" : "Create Account"}
-                </Button>
-              </form>
-            ) : (
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="skills">Skills (comma separated)</Label>
-                  <Input 
-                    id="skills" 
-                    value={skills}
-                    onChange={(e) => setSkills(e.target.value)}
-                    placeholder="JavaScript, React, UI Design" 
-                    className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="experience">Years of Experience</Label>
-                  <Input 
-                    id="experience" 
-                    type="number"
-                    min="0"
-                    max="50" 
-                    value={experience}
-                    onChange={(e) => setExperience(e.target.value)}
-                    placeholder="5" 
-                    className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Short Bio</Label>
-                  <Textarea 
-                    id="bio" 
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell clients about yourself and your expertise..." 
-                    className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent resize-none min-h-[80px]"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
-                  <Input 
-                    id="hourlyRate" 
-                    type="number"
-                    min="1"
-                    value={hourlyRate}
-                    onChange={(e) => setHourlyRate(e.target.value)}
-                    placeholder="50" 
-                    className="bg-navy/50 border-navy-accent/30 focus-visible:ring-navy-accent"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="flex gap-3">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    className="flex-1 border-navy-accent/30 hover:bg-navy-accent/10"
-                    onClick={() => setSignupStep(1)}
-                    disabled={isLoading}
-                  >
-                    Back
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    className="flex-1 bg-navy-accent text-navy hover:bg-navy-accent/90"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      "Create Account"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            )}
+                  Login
+                </button>
+              </div>
+            </form>
           </TabsContent>
         </Tabs>
       </DialogContent>
