@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Card,
   CardContent, 
@@ -16,24 +15,114 @@ import { UserCircle, Bell, Moon, Sun, Shield, LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import GraphicAvatar, { AvatarSelector, AvatarStyle } from "@/components/GraphicAvatar";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
+import { useAuth } from "@/contexts/AuthContext";
 
 const UserSettings = () => {
-  const [user, setUser] = useState({
-    name: "Alex Johnson",
-    email: "alex@example.com",
-    username: "alexjohnson",
-    avatarStyle: "bottts" as AvatarStyle,
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [profileData, setProfileData] = useState({
+    name: "",
+    email: "",
+    username: "",
+    avatarUrl: null as string | null,
     notificationsEnabled: true,
     darkModeEnabled: false,
     twoFactorEnabled: false
   });
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (error) {
+          console.error('Error fetching profile:', error);
+          return;
+        }
+        
+        if (data) {
+          setProfileData({
+            name: data.full_name || user.user_metadata?.full_name || "",
+            email: user.email || "",
+            username: user.user_metadata?.username || user.email?.split('@')[0] || "",
+            avatarUrl: data.avatar_url,
+            notificationsEnabled: true,
+            darkModeEnabled: false,
+            twoFactorEnabled: false
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    };
+    
+    fetchProfile();
+  }, [user]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Profile updated",
-      description: "Your profile has been updated successfully.",
-    });
+    
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: profileData.name,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error updating profile",
+        description: "There was a problem updating your profile.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateAvatar = async (avatarUrl: string): Promise<void> => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Update local state
+      setProfileData(prev => ({
+        ...prev,
+        avatarUrl: avatarUrl
+      }));
+      
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      throw error;
+    }
   };
 
   const handleSaveNotifications = (e: React.FormEvent) => {
@@ -45,12 +134,21 @@ const UserSettings = () => {
   };
 
   const handleAvatarStyleChange = (style: AvatarStyle) => {
-    setUser({ ...user, avatarStyle: style });
+    // setUser({ ...user, avatarStyle: style });
     toast({
       title: "Avatar updated",
       description: "Your profile picture has been updated.",
     });
   };
+  
+  if (!user) {
+    return (
+      <div className="container max-w-6xl py-10">
+        <h1 className="text-3xl font-bold mb-6 accent-gradient">Settings</h1>
+        <p>Please sign in to view your settings.</p>
+      </div>
+    );
+  }
   
   return (
     <div className="container max-w-6xl py-10">
@@ -91,8 +189,8 @@ const UserSettings = () => {
                       <Label htmlFor="name">Full Name</Label>
                       <Input 
                         id="name" 
-                        value={user.name}
-                        onChange={e => setUser({...user, name: e.target.value})}
+                        value={profileData.name}
+                        onChange={e => setProfileData({...profileData, name: e.target.value})}
                         className="bg-white/5"
                       />
                     </div>
@@ -100,8 +198,8 @@ const UserSettings = () => {
                       <Label htmlFor="username">Username</Label>
                       <Input 
                         id="username" 
-                        value={user.username}
-                        onChange={e => setUser({...user, username: e.target.value})}
+                        value={profileData.username}
+                        onChange={e => setProfileData({...profileData, username: e.target.value})}
                         className="bg-white/5"
                       />
                     </div>
@@ -111,10 +209,12 @@ const UserSettings = () => {
                     <Input 
                       id="email" 
                       type="email" 
-                      value={user.email}
-                      onChange={e => setUser({...user, email: e.target.value})}
+                      value={profileData.email}
+                      onChange={e => setProfileData({...profileData, email: e.target.value})}
                       className="bg-white/5"
+                      disabled
                     />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>
@@ -133,20 +233,17 @@ const UserSettings = () => {
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle>Profile Picture</CardTitle>
-                <CardDescription>Choose your avatar style</CardDescription>
+                <CardDescription>Update your profile picture</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center space-y-6">
-                <GraphicAvatar 
-                  username={user.name}
-                  style={user.avatarStyle}
-                  size="xl"
-                />
-                
-                <AvatarSelector 
-                  username={user.name} 
-                  selectedStyle={user.avatarStyle} 
-                  onSelect={handleAvatarStyleChange} 
-                />
+                {user && (
+                  <ProfileImageUpload
+                    userId={user.id}
+                    avatarUrl={profileData.avatarUrl}
+                    username={profileData.name}
+                    onSuccess={handleUpdateAvatar}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>
@@ -168,8 +265,8 @@ const UserSettings = () => {
                       <p className="text-sm text-muted-foreground">Receive updates via email</p>
                     </div>
                     <Switch 
-                      checked={user.notificationsEnabled} 
-                      onCheckedChange={(checked) => setUser({...user, notificationsEnabled: checked})}
+                      checked={profileData.notificationsEnabled} 
+                      onCheckedChange={(checked) => setProfileData({...profileData, notificationsEnabled: checked})}
                     />
                   </div>
                   <Separator />
@@ -212,8 +309,8 @@ const UserSettings = () => {
                   <div className="flex items-center space-x-2">
                     <Sun size={16} />
                     <Switch 
-                      checked={user.darkModeEnabled} 
-                      onCheckedChange={(checked) => setUser({...user, darkModeEnabled: checked})}
+                      checked={profileData.darkModeEnabled} 
+                      onCheckedChange={(checked) => setProfileData({...profileData, darkModeEnabled: checked})}
                     />
                     <Moon size={16} />
                   </div>
@@ -238,8 +335,8 @@ const UserSettings = () => {
                     <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
                   </div>
                   <Switch 
-                    checked={user.twoFactorEnabled} 
-                    onCheckedChange={(checked) => setUser({...user, twoFactorEnabled: checked})}
+                    checked={profileData.twoFactorEnabled} 
+                    onCheckedChange={(checked) => setProfileData({...profileData, twoFactorEnabled: checked})}
                   />
                 </div>
                 <Separator />

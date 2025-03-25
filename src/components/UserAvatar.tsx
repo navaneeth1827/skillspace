@@ -17,13 +17,15 @@ interface UserAvatarProps {
   username?: string;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
+  onClick?: () => void;
 }
 
 const UserAvatar = ({ 
   avatarUrl, 
   username = "User", 
   size = "md", 
-  className 
+  className,
+  onClick
 }: UserAvatarProps) => {
   // Determine the size
   const sizeClasses = {
@@ -49,7 +51,15 @@ const UserAvatar = ({
     .substring(0, 2);
 
   return (
-    <Avatar className={cn(sizeClasses[size], "border border-white/10", className)}>
+    <Avatar 
+      className={cn(
+        sizeClasses[size], 
+        "border border-white/10", 
+        onClick && "cursor-pointer hover:opacity-80 transition-opacity",
+        className
+      )}
+      onClick={onClick}
+    >
       <AvatarImage 
         src={avatarUrl || ""} 
         alt={username} 

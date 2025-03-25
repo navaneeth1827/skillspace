@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -8,17 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, DollarSign, Edit, MapPin, Plus, Star, User } from "lucide-react";
+import { Briefcase, DollarSign, Edit, MapPin, Plus, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import UserAvatar from "@/components/UserAvatar";
 import { ProfileData } from "@/types/profile";
 import { useProfileData } from "@/hooks/useProfileData";
 import PortfolioSection from "@/components/profile/PortfolioSection";
 import ExperienceSection from "@/components/profile/ExperienceSection";
 import ReviewsSection from "@/components/profile/ReviewsSection";
 import AboutSection from "@/components/profile/AboutSection";
+import ProfileImageUpload from "@/components/profile/ProfileImageUpload";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -91,7 +90,7 @@ const Profile = () => {
               
           const profileDataFormatted: ProfileData = {
             full_name: data.full_name || "",
-            title: "",
+            title: data.title || "",
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
@@ -117,6 +116,33 @@ const Profile = () => {
     
     fetchProfile();
   }, [user]);
+  
+  const handleUpdateAvatar = async (avatarUrl: string): Promise<void> => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      setProfileData(prev => ({
+        ...prev,
+        avatar_url: avatarUrl
+      }));
+      
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      throw error;
+    }
+  };
   
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -278,21 +304,25 @@ const Profile = () => {
               <div className="col-span-1">
                 <div className="glass-card p-6 mb-6">
                   <div className="flex flex-col items-center text-center">
-                    <div className="h-32 w-32 rounded-full glass-card flex items-center justify-center mb-4 relative">
-                      <UserAvatar 
-                        avatarUrl={profileData.avatar_url} 
+                    {isEditing ? (
+                      <ProfileImageUpload
+                        userId={user.id}
+                        avatarUrl={profileData.avatar_url}
                         username={profileData.full_name}
-                        size="xl"
+                        onSuccess={handleUpdateAvatar}
                       />
-                      {isEditing && (
-                        <Button variant="outline" size="sm" className="absolute bottom-0 right-0 rounded-full h-8 w-8 p-0">
-                          <Edit size={14} />
-                        </Button>
-                      )}
-                    </div>
+                    ) : (
+                      <div className="h-32 w-32 rounded-full glass-card flex items-center justify-center mb-4 relative">
+                        <UserAvatar 
+                          avatarUrl={profileData.avatar_url} 
+                          username={profileData.full_name}
+                          size="xl"
+                        />
+                      </div>
+                    )}
                     
                     {isEditing ? (
-                      <div className="w-full space-y-4">
+                      <div className="w-full space-y-4 mt-4">
                         <div>
                           <Label htmlFor="name">Full Name</Label>
                           <Input
