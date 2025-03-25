@@ -37,13 +37,15 @@ const UserMenu = () => {
         }
         
         if (data) {
-          // Convert to ProfileData and ensure skills is proper format
+          // Add a title field even though it doesn't exist in the database
           const profileDataConverted: ProfileData = {
             ...data,
             // Convert skills to array if it's a string
             skills: typeof data.skills === 'string' && data.skills 
               ? data.skills.split(',').map(s => s.trim()) 
-              : data.skills || []
+              : data.skills || [],
+            // Add an empty title field
+            title: ""
           };
           
           setProfileData(profileDataConverted);

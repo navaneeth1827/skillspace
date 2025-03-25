@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -90,10 +89,9 @@ const Profile = () => {
                 : []
               : [];
               
-          // Create a formatted profile data object with default values for missing fields
           const profileDataFormatted: ProfileData = {
             full_name: data.full_name || "",
-            title: data.title || "", // This might be missing in the database
+            title: "",
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
