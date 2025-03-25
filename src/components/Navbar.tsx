@@ -8,6 +8,13 @@ import UserMenu from "./UserMenu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Define interface for navigation links that includes the optional icon property
+interface NavLink {
+  text: string;
+  href: string;
+  icon?: React.ReactNode;
+}
+
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -19,12 +26,12 @@ const Navbar = () => {
   const closeMenu = () => setIsMenuOpen(false);
 
   // Routes that are accessible to both logged-in and non-logged-in users
-  const publicNavLinks = [
+  const publicNavLinks: NavLink[] = [
     { text: "Home", href: "/" },
   ];
 
   // Routes that are accessible only to logged-in users
-  const privateNavLinks = [
+  const privateNavLinks: NavLink[] = [
     { text: "Find a Job", href: "/find-job" },
     { text: "Post a Job", href: "/post-job" },
     { text: "Community", href: "/community", icon: <Users size={18} /> },
