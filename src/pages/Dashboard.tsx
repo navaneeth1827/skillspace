@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -10,8 +10,11 @@ import Button from "@/components/Button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import UserPerformanceCharts from "@/components/UserPerformanceCharts";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { ProfileData } from "@/types/profile";
+import UserAvatar from "@/components/UserAvatar";
 
-// Sample data for dashboard display
 const recommendedJobs = [
   {
     id: 101,
@@ -103,7 +106,64 @@ const activeChats = [
 
 const Dashboard = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!user) return;
+      
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching profile:', error);
+          return;
+        }
+        
+        if (data) {
+          const skillsArray = Array.isArray(data.skills) 
+            ? data.skills 
+            : data.skills 
+              ? typeof data.skills === 'string' 
+                ? data.skills.split(',').map(s => s.trim()).filter(Boolean)
+                : []
+              : [];
+              
+          const profileDataFormatted: ProfileData = {
+            full_name: data.full_name || "",
+            title: data.title || "",
+            location: data.location || "",
+            bio: data.bio || "",
+            hourly_rate: data.hourly_rate || 0,
+            skills: skillsArray,
+            avatar_url: data.avatar_url,
+            user_type: data.user_type || "freelancer",
+            company_name: data.company_name,
+            website: data.website,
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            id: data.id
+          };
+          
+          setProfileData(profileDataFormatted);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProfileData();
+  }, [user]);
 
   const handleApply = (jobId: number) => {
     toast({
@@ -118,18 +178,27 @@ const Dashboard = () => {
       <main className="flex-1 py-8">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Sidebar - User Profile Summary */}
             <div className="md:w-1/4">
               <div className="glass-card p-6 mb-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="h-16 w-16 rounded-full bg-navy-accent/20 flex items-center justify-center overflow-hidden">
-                    <User size={32} className="text-navy-accent" />
+                {isLoading ? (
+                  <div className="flex items-center justify-center p-4">
+                    <div className="animate-spin h-6 w-6 border-2 border-navy-accent rounded-full border-t-transparent"></div>
                   </div>
-                  <div>
-                    <h2 className="font-bold text-xl">John Doe</h2>
-                    <p className="text-sm text-muted-foreground">Senior Developer</p>
+                ) : (
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="h-16 w-16 rounded-full overflow-hidden">
+                      <UserAvatar 
+                        username={profileData?.full_name || "User"} 
+                        avatarUrl={profileData?.avatar_url} 
+                        size="lg" 
+                      />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-xl">{profileData?.full_name || "User"}</h2>
+                      <p className="text-sm text-muted-foreground">{profileData?.title || "Professional"}</p>
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="border-t border-white/10 pt-4 mt-4">
                   <Link to="/profile" className="text-navy-accent hover:text-navy-accent/80 text-sm flex items-center gap-2 mb-2">
                     <User size={14} />
@@ -142,7 +211,6 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Recent Messages */}
               <div className="glass-card p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-semibold">Recent Messages</h3>
@@ -173,17 +241,14 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Main Content */}
             <div className="md:w-3/4">
-              <h1 className="text-2xl font-bold mb-6">Welcome back, John!</h1>
+              <h1 className="text-2xl font-bold mb-6">Welcome back, {profileData?.full_name?.split(' ')[0] || "there"}!</h1>
               
-              {/* User Performance Analytics */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">Your Performance Analytics</h2>
                 <UserPerformanceCharts />
               </div>
               
-              {/* Search Bar */}
               <div className="relative mb-6">
                 <Input
                   placeholder="Search for jobs by title, company, or skills..."
@@ -214,7 +279,6 @@ const Dashboard = () => {
                 </Button>
               </div>
               
-              {/* Job Tabs */}
               <Tabs defaultValue="recommended" className="mb-8">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="recommended">AI Recommended</TabsTrigger>
@@ -222,7 +286,6 @@ const Dashboard = () => {
                   <TabsTrigger value="saved">Saved Jobs</TabsTrigger>
                 </TabsList>
                 
-                {/* AI Recommended Jobs */}
                 <TabsContent value="recommended">
                   <div className="space-y-4">
                     {recommendedJobs.map((job, index) => (
@@ -296,7 +359,6 @@ const Dashboard = () => {
                   </div>
                 </TabsContent>
                 
-                {/* Recent Jobs */}
                 <TabsContent value="recent">
                   <div className="space-y-4">
                     {recentJobs.map((job, index) => (
@@ -369,7 +431,6 @@ const Dashboard = () => {
                   </div>
                 </TabsContent>
                 
-                {/* Saved Jobs */}
                 <TabsContent value="saved">
                   <div className="text-center py-8">
                     <h3 className="text-lg font-medium">No saved jobs yet</h3>
@@ -383,7 +444,6 @@ const Dashboard = () => {
                 </TabsContent>
               </Tabs>
               
-              {/* Job Categories */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">Explore Job Categories</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

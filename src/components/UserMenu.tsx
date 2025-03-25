@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -37,15 +36,12 @@ const UserMenu = () => {
         }
         
         if (data) {
-          // Add a title field even though it doesn't exist in the database
           const profileDataConverted: ProfileData = {
             ...data,
-            // Convert skills to array if it's a string
             skills: typeof data.skills === 'string' && data.skills 
               ? data.skills.split(',').map(s => s.trim()) 
               : data.skills || [],
-            // Add an empty title field
-            title: ""
+            title: data.title || ""
           };
           
           setProfileData(profileDataConverted);
@@ -65,7 +61,6 @@ const UserMenu = () => {
     setOpen(false);
   };
 
-  // Fallback to user metadata if profile data is not available yet
   const displayName = profileData?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
   const avatarUrl = profileData?.avatar_url || null;
 
