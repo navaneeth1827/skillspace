@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -9,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Button from "@/components/Button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import UserPerformanceCharts from "@/components/UserPerformanceCharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ProfileData } from "@/types/profile";
@@ -110,6 +110,7 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -163,6 +164,45 @@ const Dashboard = () => {
     };
     
     fetchProfileData();
+    
+    // Fetch unread message count
+    if (user) {
+      const fetchUnreadMessages = async () => {
+        const { count, error } = await supabase
+          .from('chat_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('receiver_id', user.id)
+          .eq('read', false);
+          
+        if (error) {
+          console.error('Error fetching unread messages count:', error);
+          return;
+        }
+        
+        setUnreadMessagesCount(count || 0);
+      };
+      
+      fetchUnreadMessages();
+      
+      // Set up realtime subscription for new messages
+      const channel = supabase
+        .channel('public:chat_messages')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `receiver_id=eq.${user.id}`
+        }, (payload) => {
+          if (payload.new && payload.new.read === false) {
+            setUnreadMessagesCount(prev => prev + 1);
+          }
+        })
+        .subscribe();
+        
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, [user]);
 
   const handleApply = (jobId: number) => {
@@ -175,17 +215,17 @@ const Dashboard = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <main className="flex-1 py-8">
+      <main className="flex-1 py-10">
         <div className="container px-4 md:px-6">
-          <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex flex-col md:flex-row gap-8">
             <div className="md:w-1/4">
-              <div className="glass-card p-6 mb-6">
+              <div className="glass-card p-6 mb-8">
                 {isLoading ? (
                   <div className="flex items-center justify-center p-4">
                     <div className="animate-spin h-6 w-6 border-2 border-navy-accent rounded-full border-t-transparent"></div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-4 mb-4">
+                  <div className="flex items-center gap-5 mb-5">
                     <div className="h-16 w-16 rounded-full overflow-hidden">
                       <UserAvatar 
                         username={profileData?.full_name || "User"} 
@@ -199,20 +239,23 @@ const Dashboard = () => {
                     </div>
                   </div>
                 )}
-                <div className="border-t border-white/10 pt-4 mt-4">
-                  <Link to="/profile" className="text-navy-accent hover:text-navy-accent/80 text-sm flex items-center gap-2 mb-2">
+                <div className="border-t border-white/10 pt-5 mt-5">
+                  <Link to="/profile" className="text-navy-accent hover:text-navy-accent/80 text-sm flex items-center gap-2 mb-3">
                     <User size={14} />
                     View complete profile
                   </Link>
                   <Link to="/messages" className="text-navy-accent hover:text-navy-accent/80 text-sm flex items-center gap-2">
                     <MessageSquare size={14} />
-                    Messages <Badge variant="outline" className="ml-2 h-5 bg-navy-accent/10">{activeChats.reduce((acc, chat) => acc + chat.unread, 0)}</Badge>
+                    Messages 
+                    {unreadMessagesCount > 0 && (
+                      <Badge variant="outline" className="ml-2 h-5 bg-navy-accent/10">{unreadMessagesCount}</Badge>
+                    )}
                   </Link>
                 </div>
               </div>
 
               <div className="glass-card p-6">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-5">
                   <h3 className="font-semibold">Recent Messages</h3>
                   <Link to="/messages" className="text-xs text-navy-accent hover:text-navy-accent/80">See all</Link>
                 </div>
@@ -242,14 +285,9 @@ const Dashboard = () => {
             </div>
 
             <div className="md:w-3/4">
-              <h1 className="text-2xl font-bold mb-6">Welcome back, {profileData?.full_name?.split(' ')[0] || "there"}!</h1>
+              <h1 className="text-2xl font-bold mb-8">Welcome back, {profileData?.full_name?.split(' ')[0] || "there"}!</h1>
               
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">Your Performance Analytics</h2>
-                <UserPerformanceCharts />
-              </div>
-              
-              <div className="relative mb-6">
+              <div className="relative mb-8">
                 <Input
                   placeholder="Search for jobs by title, company, or skills..."
                   value={searchTerm}
@@ -279,15 +317,15 @@ const Dashboard = () => {
                 </Button>
               </div>
               
-              <Tabs defaultValue="recommended" className="mb-8">
-                <TabsList className="grid w-full grid-cols-3">
+              <Tabs defaultValue="recommended" className="mb-10">
+                <TabsList className="grid w-full grid-cols-3 mb-6">
                   <TabsTrigger value="recommended">AI Recommended</TabsTrigger>
                   <TabsTrigger value="recent">Recent Jobs</TabsTrigger>
                   <TabsTrigger value="saved">Saved Jobs</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="recommended">
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {recommendedJobs.map((job, index) => (
                       <AnimatedCard
                         key={job.id}
@@ -295,7 +333,7 @@ const Dashboard = () => {
                         delay={`${index * 0.05}s`}
                       >
                         <div className="flex justify-between">
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <div className="flex items-center gap-2">
                               <h3 className="font-semibold text-lg">{job.title}</h3>
                               <div className="flex items-center text-navy-accent">
@@ -444,9 +482,9 @@ const Dashboard = () => {
                 </TabsContent>
               </Tabs>
               
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">Explore Job Categories</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="mb-10">
+                <h2 className="text-xl font-semibold mb-6">Explore Job Categories</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                   {[
                     { name: "Development", icon: <Briefcase className="h-4 w-4 mr-2" />, count: 1240 },
                     { name: "Design", icon: <Briefcase className="h-4 w-4 mr-2" />, count: 842 },
@@ -458,7 +496,7 @@ const Dashboard = () => {
                     <Link 
                       key={category.name}
                       to={`/jobs?category=${category.name}`}
-                      className="flex items-center p-3 rounded-lg glass-card hover:bg-navy-accent/10 transition-colors"
+                      className="flex items-center p-4 rounded-lg glass-card hover:bg-navy-accent/10 transition-colors"
                     >
                       {category.icon}
                       <span>{category.name}</span>
