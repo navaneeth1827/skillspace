@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import { Badge } from "@/components/ui/badge";
@@ -15,37 +15,6 @@ import ChatMessage from "@/components/ChatMessage";
 import { useChat } from "@/hooks/useChat";
 import { useToast } from "@/hooks/use-toast";
 import AnimatedCard from "@/components/AnimatedCard";
-
-// For demo purposes, we'll provide some sample contacts
-const sampleContacts = [
-  {
-    id: "user-1",
-    name: "Jane Smith",
-    company: "TechGiant Inc.",
-    avatar: "/placeholder.svg",
-    lastMessage: "Can we schedule an interview for next week?",
-    lastActive: "2 hours ago",
-    unread: 2
-  },
-  {
-    id: "user-2",
-    name: "Robert Johnson",
-    company: "StartupX",
-    avatar: "/placeholder.svg",
-    lastMessage: "Thanks for sending your portfolio, I'm impressed with your work.",
-    lastActive: "Yesterday",
-    unread: 0
-  },
-  {
-    id: "user-3",
-    name: "Emily Davis",
-    company: "DesignHub",
-    avatar: "/placeholder.svg", 
-    lastMessage: "I'd like to discuss the project timeline.",
-    lastActive: "2 days ago",
-    unread: 0
-  }
-];
 
 const Messages = () => {
   const { id: contactId } = useParams();
@@ -110,38 +79,83 @@ const Messages = () => {
     fetchProfileData();
   }, [user]);
 
-  // In a real app, we would fetch contacts from the database
-  // For this demo, we're using sample data and simulating API calls
+  // Fetch all users that the current user can chat with
   useEffect(() => {
     const fetchContacts = async () => {
-      // In a real implementation, you would fetch contacts from the database
-      // For this demo, we're simulating an API call with sample data
+      if (!user) return;
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Transform sample data to match ProfileData type
-      const contacts = sampleContacts.map(contact => ({
-        id: contact.id,
-        full_name: contact.name,
-        company_name: contact.company,
-        avatar_url: contact.avatar,
-        user_type: "client",
-      } as ProfileData));
-      
-      setContactsData(contacts);
-      
-      // If there's an active contact, set their data
-      if (activeContact) {
-        const contact = contacts.find(c => c.id === activeContact);
-        if (contact) {
-          setSelectedContactData(contact);
+      try {
+        // Get users the current user has chatted with
+        const { data: chatUsers, error: chatError } = await supabase
+          .from('chat_messages')
+          .select('sender_id, receiver_id')
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+          
+        if (chatError) {
+          console.error('Error fetching chat users:', chatError);
+          return;
         }
+        
+        // Extract unique user IDs
+        const uniqueUserIds = new Set<string>();
+        if (chatUsers) {
+          chatUsers.forEach(chat => {
+            if (chat.sender_id !== user.id) uniqueUserIds.add(chat.sender_id);
+            if (chat.receiver_id !== user.id) uniqueUserIds.add(chat.receiver_id);
+          });
+        }
+        
+        // Get all other users that the current user hasn't chatted with yet
+        const { data: allProfiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .neq('id', user.id);
+          
+        if (profilesError) {
+          console.error('Error fetching all profiles:', profilesError);
+          return;
+        }
+        
+        let contacts: ProfileData[] = [];
+        
+        // First add users the current user has chatted with
+        if (uniqueUserIds.size > 0) {
+          const { data: chatProfiles, error: chatProfilesError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', Array.from(uniqueUserIds));
+            
+          if (chatProfilesError) {
+            console.error('Error fetching chat profiles:', chatProfilesError);
+          } else if (chatProfiles) {
+            contacts = chatProfiles;
+          }
+        }
+        
+        // Then add remaining users the current user hasn't chatted with
+        if (allProfiles) {
+          const remainingProfiles = allProfiles.filter(
+            profile => !contacts.some(contact => contact.id === profile.id)
+          );
+          contacts = [...contacts, ...remainingProfiles];
+        }
+        
+        setContactsData(contacts);
+        
+        // If there's an active contact, set their data
+        if (activeContact) {
+          const contact = contacts.find(c => c.id === activeContact);
+          if (contact) {
+            setSelectedContactData(contact);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
       }
     };
     
     fetchContacts();
-  }, [activeContact]);
+  }, [user, activeContact]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeContact) return;
@@ -189,40 +203,38 @@ const Messages = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  {contactsData.map(contact => (
-                    <div 
-                      key={contact.id} 
-                      className={`
-                        flex items-center gap-3 p-3 rounded-lg cursor-pointer transition
-                        ${activeContact === contact.id 
-                          ? 'bg-navy-accent/20 border border-navy-accent/40' 
-                          : 'hover:bg-white/5'}
-                      `}
-                      onClick={() => setActiveContact(contact.id)}
-                    >
-                      <div className="relative">
-                        <UserAvatar 
-                          username={contact.full_name} 
-                          avatarUrl={contact.avatar_url} 
-                          size="md" 
-                        />
-                        {sampleContacts.find(c => c.id === contact.id)?.unread && (
-                          <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-navy-accent"></div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between">
-                          <h3 className="font-medium text-sm">{contact.full_name}</h3>
-                          <span className="text-xs text-muted-foreground">
-                            {sampleContacts.find(c => c.id === contact.id)?.lastActive}
-                          </span>
+                  {contactsData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No contacts available</p>
+                  ) : (
+                    contactsData.map(contact => (
+                      <div 
+                        key={contact.id} 
+                        className={`
+                          flex items-center gap-3 p-3 rounded-lg cursor-pointer transition
+                          ${activeContact === contact.id 
+                            ? 'bg-navy-accent/20 border border-navy-accent/40' 
+                            : 'hover:bg-white/5'}
+                        `}
+                        onClick={() => setActiveContact(contact.id)}
+                      >
+                        <div className="relative">
+                          <UserAvatar 
+                            username={contact.full_name} 
+                            avatarUrl={contact.avatar_url} 
+                            size="sm" 
+                          />
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {contact.company_name}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between">
+                            <h3 className="font-medium text-sm">{contact.full_name}</h3>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {contact.company_name || contact.user_type || "User"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </AnimatedCard>
             </div>
@@ -250,7 +262,7 @@ const Messages = () => {
                       <div>
                         <h3 className="font-medium">{selectedContactData?.full_name}</h3>
                         <p className="text-xs text-muted-foreground">
-                          {selectedContactData?.company_name || selectedContactData?.title}
+                          {selectedContactData?.company_name || selectedContactData?.title || selectedContactData?.user_type}
                         </p>
                       </div>
                     </div>

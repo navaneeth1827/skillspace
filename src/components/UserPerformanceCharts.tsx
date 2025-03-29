@@ -1,13 +1,10 @@
 
-import { Activity, Award, CheckCircle, Clock, Target, ThumbsUp, Zap } from "lucide-react";
+import { Activity, Award, Target, Zap } from "lucide-react";
 import { 
   AreaChart, 
   Area, 
   BarChart, 
   Bar, 
-  PieChart, 
-  Pie, 
-  Cell, 
   RadarChart, 
   PolarGrid, 
   PolarAngleAxis, 
@@ -27,7 +24,7 @@ import {
   ChartTooltipContent 
 } from "@/components/ui/chart";
 
-// Sample data for demonstration
+// Sample data for demonstration - in a real app, this would come from API/database
 const weeklyActivity = [
   { name: "Mon", applications: 2, interviews: 1 },
   { name: "Tue", applications: 5, interviews: 0 },
@@ -47,15 +44,6 @@ const skillsData = [
   { subject: 'TypeScript', A: 60, fullMark: 100 },
 ];
 
-const jobMatchData = [
-  { name: 'Strong Match', value: 6 },
-  { name: 'Good Match', value: 12 },
-  { name: 'Average Match', value: 24 },
-  { name: 'Low Match', value: 18 },
-];
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-
 const performanceMetrics = [
   { name: 'Profile Completeness', value: 85 },
   { name: 'Response Rate', value: 92 },
@@ -65,7 +53,7 @@ const performanceMetrics = [
 
 const UserPerformanceCharts = () => {
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 mb-10">
       {/* Activity Chart */}
       <Card className="col-span-1 md:col-span-2 lg:col-span-2">
         <CardHeader>
@@ -76,7 +64,7 @@ const UserPerformanceCharts = () => {
           <CardDescription>Your job search activity over the past week</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px]">
+          <div className="h-[300px]">
             <ChartContainer 
               config={{
                 applications: {
@@ -117,7 +105,7 @@ const UserPerformanceCharts = () => {
       </Card>
 
       {/* Skills Radar Chart */}
-      <Card className="col-span-1 md:col-span-1 lg:col-span-1">
+      <Card className="col-span-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
@@ -126,7 +114,7 @@ const UserPerformanceCharts = () => {
           <CardDescription>Your skills proficiency</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px]">
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={skillsData}>
                 <PolarGrid />
@@ -140,42 +128,8 @@ const UserPerformanceCharts = () => {
         </CardContent>
       </Card>
 
-      {/* Job Match Distribution */}
-      <Card className="col-span-1 md:col-span-1 lg:col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            Job Match Distribution
-          </CardTitle>
-          <CardDescription>How well jobs match your profile</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart width={400} height={400}>
-                <Pie
-                  data={jobMatchData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {jobMatchData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value, name) => [`${value} jobs`, name]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Performance Metrics */}
-      <Card className="col-span-1 md:col-span-2 lg:col-span-4">
+      <Card className="col-span-1 md:col-span-2 lg:col-span-3">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Award className="h-5 w-5 text-primary" />
@@ -184,7 +138,7 @@ const UserPerformanceCharts = () => {
           <CardDescription>Your performance across key metrics</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px]">
+          <div className="h-[300px]">
             <ChartContainer 
               config={{
                 value: {
@@ -196,10 +150,10 @@ const UserPerformanceCharts = () => {
               <BarChart
                 data={performanceMetrics}
                 margin={{
-                  top: 5,
+                  top: 20,
                   right: 30,
                   left: 20,
-                  bottom: 5,
+                  bottom: 20,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
