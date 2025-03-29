@@ -13,10 +13,10 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em #00f3ffaa);
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 2em #00f3ffaa);
 }
 
 @keyframes logo-spin {
@@ -36,14 +36,29 @@
 
 .card {
   padding: 2em;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 .read-the-docs {
-  color: #888;
+  color: #f0f0f0;
 }
 
 /* Dark input styles */
 input, textarea, select {
   background-color: black;
   color: white;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #00f3ff;
+  box-shadow: 0 0 5px rgba(0, 243, 255, 0.5);
+}
+
+/* Button styles */
+button {
+  border-radius: 1rem;
 }

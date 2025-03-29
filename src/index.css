@@ -1,38 +1,40 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217 91% 60%;
-    --accent-foreground: 222 47% 11%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 3%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 3%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 195 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 9%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 9%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 195 100% 50%;
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 224 76% 48%;
-    --radius: 0.75rem;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 195 100% 50%;
+    --radius: 1.5rem;
   }
 
   * {
-    @apply border-border selection:bg-blue-800/30 selection:text-white;
+    @apply border-border selection:bg-accent/30 selection:text-white;
   }
   
   body {
-    @apply bg-slate-900 text-foreground antialiased overflow-x-hidden;
+    @apply bg-black text-foreground antialiased overflow-x-hidden font-sans;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
 
@@ -57,11 +59,11 @@
   }
 
   .glass-card {
-    @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.3)] rounded-lg;
+    @apply backdrop-blur-xl bg-card/80 border border-white/10 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.5)] rounded-lg;
   }
   
   .neo-blur {
-    @apply backdrop-blur-2xl bg-black/40 border border-white/10 rounded-lg;
+    @apply backdrop-blur-2xl bg-black/80 border border-white/10 rounded-lg;
   }
   
   .text-gradient {
@@ -69,27 +71,55 @@
   }
   
   .accent-gradient {
-    @apply bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent;
+    @apply bg-neon-gradient bg-clip-text text-transparent;
   }
   
   .hover-shadow {
-    @apply transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)];
+    @apply transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,243,255,0.2)];
   }
   
   .card-hover {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)];
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,243,255,0.2)];
   }
   
   .neon-text {
-    @apply text-blue-400 animate-glow;
+    @apply text-neon-blue animate-glow;
   }
   
   .neon-border {
-    @apply border border-blue-400 shadow-[0_0_5px_#3b82f6,0_0_10px_rgba(59,130,246,0.5)];
+    @apply border border-neon-blue shadow-[0_0_5px_#00f3ff,0_0_10px_rgba(0,243,255,0.5)] animate-neon-pulse;
   }
   
   /* Input field styling */
   .input-dark {
     @apply bg-black text-white border-white/20;
+  }
+
+  /* New neon effect utilities */
+  .neon-blue {
+    @apply text-neon-blue shadow-[0_0_5px_#00f3ff];
+  }
+
+  .neon-purple {
+    @apply text-neon-purple shadow-[0_0_5px_#9b87f5];
+  }
+
+  .neon-pink {
+    @apply text-neon-pink shadow-[0_0_5px_#ff00ff];
+  }
+
+  .neon-green {
+    @apply text-neon-green shadow-[0_0_5px_#00ff9f];
+  }
+
+  /* Button with neon effect */
+  .neon-button {
+    @apply relative overflow-hidden rounded-full bg-black text-white border border-neon-blue 
+           shadow-[0_0_5px_#00f3ff] transition-all duration-300 hover:shadow-[0_0_10px_#00f3ff,0_0_20px_rgba(0,243,255,0.8)];
+  }
+
+  /* Card with neon border */
+  .neon-card {
+    @apply glass-card border-neon-blue shadow-[0_0_5px_#00f3ff] animate-neon-pulse;
   }
 }

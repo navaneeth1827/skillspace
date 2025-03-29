@@ -19,6 +19,9 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				sans: ['Poppins', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -63,6 +66,12 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
+				neon: {
+					blue: '#00f3ff',
+					purple: '#9b87f5',
+					pink: '#ff00ff',
+					green: '#00ff9f',
+				},
 				purple: {
 					DEFAULT: '#9b87f5',
 					light: '#7E69AB',
@@ -72,9 +81,9 @@ export default {
 				}
 			},
 			borderRadius: {
-				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				lg: '1.5rem',
+				md: '1.2rem',
+				sm: '0.8rem'
 			},
 			keyframes: {
 				'accordion-down': {
@@ -119,10 +128,18 @@ export default {
 				},
 				'glow': {
 					'0%, 100%': { 
-						textShadow: '0 0 10px rgba(155, 135, 245, 0.3), 0 0 40px rgba(155, 135, 245, 0.2)' 
+						textShadow: '0 0 10px rgba(0, 243, 255, 0.5), 0 0 40px rgba(0, 243, 255, 0.3)' 
 					},
 					'50%': { 
-						textShadow: '0 0 20px rgba(155, 135, 245, 0.5), 0 0 60px rgba(155, 135, 245, 0.4)' 
+						textShadow: '0 0 20px rgba(0, 243, 255, 0.8), 0 0 60px rgba(0, 243, 255, 0.6)' 
+					},
+				},
+				'neon-pulse': {
+					'0%, 100%': { 
+						boxShadow: '0 0 5px rgba(0, 243, 255, 0.5), 0 0 10px rgba(0, 243, 255, 0.3)'
+					},
+					'50%': { 
+						boxShadow: '0 0 15px rgba(0, 243, 255, 0.8), 0 0 30px rgba(0, 243, 255, 0.6)'
 					},
 				},
 			},
@@ -134,11 +151,13 @@ export default {
 				'slide-in-right': 'slide-in-right 0.5s ease-out',
 				'pulse-soft': 'pulse-soft 3s infinite ease-in-out',
 				'glow': 'glow 3s infinite ease-in-out',
+				'neon-pulse': 'neon-pulse 3s infinite ease-in-out',
 			},
 			backgroundImage: {
 				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
 				'purple-gradient': 'linear-gradient(to right, #9b87f5, #7E69AB)',
-				'neon-gradient': 'linear-gradient(to right, #D6BCFA, #9b87f5)',
+				'neon-gradient': 'linear-gradient(to right, #00f3ff, #ff00ff)',
+				'cyber-gradient': 'linear-gradient(to right, #00f3ff, #00ff9f)',
 			},
 		}
 	},
