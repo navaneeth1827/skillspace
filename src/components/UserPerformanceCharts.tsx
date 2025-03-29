@@ -1,10 +1,8 @@
 
-import { Activity, Award, Target, Zap } from "lucide-react";
+import { Activity, Zap } from "lucide-react";
 import { 
   AreaChart, 
   Area, 
-  BarChart, 
-  Bar, 
   RadarChart, 
   PolarGrid, 
   PolarAngleAxis, 
@@ -44,18 +42,11 @@ const skillsData = [
   { subject: 'TypeScript', A: 60, fullMark: 100 },
 ];
 
-const performanceMetrics = [
-  { name: 'Profile Completeness', value: 85 },
-  { name: 'Response Rate', value: 92 },
-  { name: 'Interview Success', value: 70 },
-  { name: 'Project Completion', value: 96 },
-];
-
 const UserPerformanceCharts = () => {
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 mb-10">
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 mb-10">
       {/* Activity Chart */}
-      <Card className="col-span-1 md:col-span-2 lg:col-span-2">
+      <Card className="col-span-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" />
@@ -124,48 +115,6 @@ const UserPerformanceCharts = () => {
                 <Legend />
               </RadarChart>
             </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Performance Metrics */}
-      <Card className="col-span-1 md:col-span-2 lg:col-span-3">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-primary" />
-            Performance Metrics
-          </CardTitle>
-          <CardDescription>Your performance across key metrics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            <ChartContainer 
-              config={{
-                value: {
-                  label: "Value (%)",
-                  color: "hsl(var(--primary))",
-                },
-              }}
-            >
-              <BarChart
-                data={performanceMetrics}
-                margin={{
-                  top: 20,
-                  right: 30,
-                  left: 20,
-                  bottom: 20,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis domain={[0, 100]} />
-                <ChartTooltip
-                  content={<ChartTooltipContent />}
-                />
-                <Legend />
-                <Bar dataKey="value" fill="var(--color-value)" />
-              </BarChart>
-            </ChartContainer>
           </div>
         </CardContent>
       </Card>

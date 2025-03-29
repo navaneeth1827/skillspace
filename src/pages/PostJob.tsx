@@ -1,6 +1,9 @@
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import Button from "@/components/Button";
@@ -20,8 +23,11 @@ const PostJob = () => {
   const [category, setCategory] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [currentSkill, setCurrentSkill] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleAddSkill = () => {
     if (currentSkill.trim() && !skills.includes(currentSkill.trim())) {
@@ -34,7 +40,7 @@ const PostJob = () => {
     setSkills(skills.filter(skill => skill !== skillToRemove));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
@@ -46,22 +52,69 @@ const PostJob = () => {
       });
       return;
     }
+
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to post a job",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Success
-    toast({
-      title: "Job Posted",
-      description: "Your job has been posted successfully"
-    });
-    
-    // Reset form
-    setJobTitle("");
-    setCompany("");
-    setLocation("");
-    setJobType("");
-    setSalary("");
-    setDescription("");
-    setCategory("");
-    setSkills([]);
+    try {
+      setIsSubmitting(true);
+      
+      // Insert job into database
+      const { data, error } = await supabase
+        .from('jobs')
+        .insert({
+          title: jobTitle,
+          company: company,
+          location: location,
+          job_type: jobType,
+          salary: salary,
+          description: description,
+          category: category,
+          skills: skills,
+          recruiter_id: user.id,
+          status: 'active'
+        })
+        .select();
+        
+      if (error) {
+        console.error("Error posting job:", error);
+        throw error;
+      }
+      
+      // Success
+      toast({
+        title: "Job Posted",
+        description: "Your job has been posted successfully"
+      });
+      
+      // Reset form
+      setJobTitle("");
+      setCompany("");
+      setLocation("");
+      setJobType("");
+      setSalary("");
+      setDescription("");
+      setCategory("");
+      setSkills([]);
+      
+      // Redirect to jobs page
+      navigate('/jobs');
+      
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to post job. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -218,8 +271,12 @@ const PostJob = () => {
                   </div>
                 </div>
                 
-                <Button type="submit" className="w-full group">
-                  Post Job
+                <Button 
+                  type="submit" 
+                  className="w-full group"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Posting..." : "Post Job"}
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>
               </form>

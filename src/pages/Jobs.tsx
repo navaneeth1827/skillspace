@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import { Briefcase, DollarSign, Filter, MapPin, Search, X } from "lucide-react";
@@ -9,106 +9,20 @@ import Button from "@/components/Button";
 import AnimatedCard from "@/components/AnimatedCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 
-// Sample job data
-const allJobs = [
-  {
-    id: 1,
-    title: "Senior React Developer",
-    company: "TechGiant Inc.",
-    location: "Remote",
-    salary: "$80k - $120k",
-    type: "Full-time",
-    category: "Development",
-    description: "We're looking for an experienced React developer to join our team building innovative web applications.",
-    tags: ["React", "TypeScript", "Redux"],
-    postedDate: "2 days ago"
-  },
-  {
-    id: 2,
-    title: "UI/UX Designer",
-    company: "Creative Studios",
-    location: "New York, USA",
-    salary: "$70k - $90k",
-    type: "Contract",
-    category: "Design",
-    description: "Design intuitive interfaces for our suite of products. Must have a strong portfolio.",
-    tags: ["Figma", "UI Design", "User Research"],
-    postedDate: "3 days ago"
-  },
-  {
-    id: 3,
-    title: "Content Writer",
-    company: "ContentHub",
-    location: "Remote",
-    salary: "$50k - $70k",
-    type: "Part-time",
-    category: "Writing",
-    description: "Create engaging content for technology blogs and websites. SEO knowledge a plus.",
-    tags: ["Writing", "SEO", "Editing"],
-    postedDate: "5 days ago"
-  },
-  {
-    id: 4,
-    title: "Full Stack Developer",
-    company: "Startup.io",
-    location: "San Francisco, USA",
-    salary: "$100k - $140k",
-    type: "Full-time",
-    category: "Development",
-    description: "Build and maintain our core product features. Experience with Node.js and React required.",
-    tags: ["Node.js", "React", "MongoDB"],
-    postedDate: "1 week ago"
-  },
-  {
-    id: 5,
-    title: "Marketing Specialist",
-    company: "GrowthHackers",
-    location: "Remote",
-    salary: "$60k - $85k",
-    type: "Full-time",
-    category: "Marketing",
-    description: "Lead our digital marketing efforts including social media, SEO, and content marketing.",
-    tags: ["Digital Marketing", "Social Media", "SEO"],
-    postedDate: "1 week ago"
-  },
-  {
-    id: 6,
-    title: "Data Scientist",
-    company: "DataDriven Tech",
-    location: "Boston, USA",
-    salary: "$90k - $130k",
-    type: "Full-time",
-    category: "Data Science",
-    description: "Analyze complex data sets and develop machine learning models for our predictive analytics platform.",
-    tags: ["Python", "Machine Learning", "Statistics"],
-    postedDate: "2 weeks ago"
-  },
-  {
-    id: 7,
-    title: "Product Manager",
-    company: "InnovateCorp",
-    location: "Remote",
-    salary: "$95k - $125k",
-    type: "Full-time",
-    category: "Product",
-    description: "Lead product development cycles from conception to launch. Work closely with design and engineering teams.",
-    tags: ["Product Strategy", "Agile", "User Experience"],
-    postedDate: "2 weeks ago"
-  },
-  {
-    id: 8,
-    title: "JavaScript Developer",
-    company: "WebTech Solutions",
-    location: "Berlin, Germany",
-    salary: "€50k - €70k",
-    type: "Contract",
-    category: "Development",
-    description: "Develop responsive web applications using modern JavaScript frameworks.",
-    tags: ["JavaScript", "Vue.js", "CSS"],
-    postedDate: "3 weeks ago"
-  }
-];
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  salary: string;
+  job_type: string;
+  category: string;
+  description: string;
+  skills: string[];
+  created_at: string;
+}
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -116,16 +30,70 @@ const Jobs = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [allTags, setAllTags] = useState<string[]>([]);
 
-  // Get all unique tags
-  const allTags = Array.from(
-    new Set(
-      allJobs.flatMap(job => job.tags)
-    )
-  );
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error("Error fetching jobs:", error);
+          return;
+        }
+
+        if (data) {
+          setJobs(data as Job[]);
+          
+          // Extract all unique tags from jobs
+          const tagsSet = new Set<string>();
+          data.forEach(job => {
+            job.skills?.forEach(skill => {
+              tagsSet.add(skill);
+            });
+          });
+          setAllTags(Array.from(tagsSet));
+        }
+      } catch (error) {
+        console.error("Failed to fetch jobs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+
+    // Set up real-time subscription for jobs
+    const channel = supabase
+      .channel('public:jobs')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'jobs' 
+        }, 
+        (payload) => {
+          console.log('Change received!', payload);
+          // Refetch jobs when changes occur
+          fetchJobs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Filter jobs
-  const filteredJobs = allJobs.filter(job => {
+  const filteredJobs = jobs.filter(job => {
     // Search filter
     const matchesSearch = 
       searchTerm === "" || 
@@ -136,7 +104,7 @@ const Jobs = () => {
     // Type filter
     const matchesType = 
       selectedType === "" || 
-      job.type === selectedType;
+      job.job_type === selectedType;
     
     // Category filter
     const matchesCategory = 
@@ -146,7 +114,7 @@ const Jobs = () => {
     // Tags filter
     const matchesTags = 
       selectedTags.length === 0 || 
-      selectedTags.some(tag => job.tags.includes(tag));
+      selectedTags.some(tag => job.skills.includes(tag));
     
     return matchesSearch && matchesType && matchesCategory && matchesTags;
   });
@@ -157,6 +125,28 @@ const Jobs = () => {
         ? prev.filter(t => t !== tag) 
         : [...prev, tag]
     );
+  };
+
+  // Function to format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) {
+      return "Today";
+    } else if (diffInDays === 1) {
+      return "Yesterday";
+    } else if (diffInDays < 7) {
+      return `${diffInDays} days ago`;
+    } else if (diffInDays < 30) {
+      const weeks = Math.floor(diffInDays / 7);
+      return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
+    } else {
+      const months = Math.floor(diffInDays / 30);
+      return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+    }
   };
 
   return (
@@ -193,6 +183,7 @@ const Jobs = () => {
                     <SelectItem value="Full-time">Full-time</SelectItem>
                     <SelectItem value="Part-time">Part-time</SelectItem>
                     <SelectItem value="Contract">Contract</SelectItem>
+                    <SelectItem value="Freelance">Freelance</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -265,70 +256,83 @@ const Jobs = () => {
             )}
             
             <div className="mt-8">
-              <h2 className="text-xl font-semibold mb-6">
-                {filteredJobs.length} 
-                {filteredJobs.length === 1 ? ' Job' : ' Jobs'} Found
-              </h2>
-              
-              <div className="space-y-4">
-                {filteredJobs.length > 0 ? (
-                  filteredJobs.map((job, index) => (
-                    <AnimatedCard
-                      key={job.id}
-                      className="hover-shadow"
-                      delay={`${index * 0.05}s`}
-                    >
-                      <div className="flex flex-col md:flex-row justify-between gap-4">
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-lg">{job.title}</h3>
-                          <p className="text-muted-foreground">{job.company}</p>
-                          
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                              <Briefcase className="mr-1 h-3 w-3" />
-                              {job.type}
+              {loading ? (
+                <div className="flex justify-center items-center h-40">
+                  <div className="animate-spin h-8 w-8 border-2 border-navy-accent rounded-full border-t-transparent"></div>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-xl font-semibold mb-6">
+                    {filteredJobs.length} 
+                    {filteredJobs.length === 1 ? ' Job' : ' Jobs'} Found
+                  </h2>
+                  
+                  <div className="space-y-4">
+                    {filteredJobs.length > 0 ? (
+                      filteredJobs.map((job, index) => (
+                        <AnimatedCard
+                          key={job.id}
+                          className="hover-shadow"
+                          delay={`${index * 0.05}s`}
+                        >
+                          <div className="flex flex-col md:flex-row justify-between gap-4">
+                            <div className="space-y-2">
+                              <h3 className="font-semibold text-lg">{job.title}</h3>
+                              <p className="text-muted-foreground">{job.company}</p>
+                              
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
+                                  <Briefcase className="mr-1 h-3 w-3" />
+                                  {job.job_type}
+                                </div>
+                                <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
+                                  <MapPin className="mr-1 h-3 w-3" />
+                                  {job.location}
+                                </div>
+                                <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
+                                  <DollarSign className="mr-1 h-3 w-3" />
+                                  {job.salary}
+                                </div>
+                              </div>
+                              
+                              <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                                {job.description}
+                              </p>
+                              
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                {job.skills.slice(0, 5).map((tag) => (
+                                  <span 
+                                    key={tag} 
+                                    className="inline-flex items-center rounded-md bg-white/5 px-2 py-1 text-xs"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                                {job.skills.length > 5 && (
+                                  <span className="inline-flex items-center rounded-md bg-white/5 px-2 py-1 text-xs">
+                                    +{job.skills.length - 5} more
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                              <MapPin className="mr-1 h-3 w-3" />
-                              {job.location}
-                            </div>
-                            <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                              <DollarSign className="mr-1 h-3 w-3" />
-                              {job.salary}
-                            </div>
-                          </div>
-                          
-                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                            {job.description}
-                          </p>
-                          
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {job.tags.map((tag) => (
-                              <span 
-                                key={tag} 
-                                className="inline-flex items-center rounded-md bg-white/5 px-2 py-1 text-xs"
-                              >
-                                {tag}
+                            
+                            <div className="flex flex-col justify-between items-end gap-2">
+                              <span className="text-xs text-muted-foreground">
+                                Posted {formatDate(job.created_at)}
                               </span>
-                            ))}
+                              <Button>Apply Now</Button>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex flex-col justify-between items-end gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            Posted {job.postedDate}
-                          </span>
-                          <Button>Apply Now</Button>
-                        </div>
+                        </AnimatedCard>
+                      ))
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-muted-foreground">No jobs match your filters. Try adjusting your search criteria.</p>
                       </div>
-                    </AnimatedCard>
-                  ))
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground">No jobs match your filters. Try adjusting your search criteria.</p>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
         </section>
