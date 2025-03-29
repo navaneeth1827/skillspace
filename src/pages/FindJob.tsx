@@ -107,7 +107,6 @@ const FindJob = () => {
       <main className="flex-1 py-8">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Sidebar */}
             <div className="md:w-1/4">
               <div className="glass-card p-6 mb-6">
                 {isLoading ? (
@@ -151,7 +150,6 @@ const FindJob = () => {
                 )}
               </div>
               
-              {/* Filters */}
               <div className="glass-card p-6">
                 <h3 className="font-semibold mb-4">Filters</h3>
                 
@@ -171,13 +169,11 @@ const FindJob = () => {
               </div>
             </div>
             
-            {/* Main Content */}
             <div className="md:w-3/4">
               <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Find Your Next Job</h1>
               </div>
               
-              {/* Search Bar */}
               <div className="relative mb-6">
                 <Input
                   placeholder="Search for jobs by title, company, or skills..."
@@ -195,7 +191,6 @@ const FindJob = () => {
                 </Button>
               </div>
               
-              {/* Job Listings */}
               <div className="space-y-4">
                 {jobListings.map((job, index) => (
                   <AnimatedCard
