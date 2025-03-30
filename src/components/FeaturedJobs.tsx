@@ -36,10 +36,11 @@ const FeaturedJobs = () => {
             job_type: item.job_type || 'Full-time',
             salary: item.budget_min && item.budget_max ? 
               `$${item.budget_min} - $${item.budget_max}` : 
-              'Competitive',
+              item.salary || 'Competitive',
+            category: item.category || 'Development',
             description: item.description,
             skills: Array.isArray(item.skills) ? item.skills : 
-              (item.skills ? JSON.parse(item.skills) : []),
+              (item.skills ? JSON.parse(JSON.stringify(item.skills)) : []),
             recruiter_id: item.recruiter_id,
             status: item.status,
             budget_min: item.budget_min,

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -10,19 +9,7 @@ import AnimatedCard from "@/components/AnimatedCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-
-interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  salary: string;
-  job_type: string;
-  category: string;
-  description: string;
-  skills: string[];
-  created_at: string;
-}
+import { Job } from "@/types/profile";
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,11 +47,16 @@ const Jobs = () => {
             category: item.category || 'Other',
             salary: item.budget_min && item.budget_max ? 
               `$${item.budget_min} - $${item.budget_max}` : 
-              'Competitive',
+              item.salary || 'Competitive',
             description: item.description,
             skills: Array.isArray(item.skills) ? item.skills : 
-              (item.skills ? JSON.parse(item.skills) : []),
-            created_at: item.created_at
+              (item.skills ? JSON.parse(JSON.stringify(item.skills)) : []),
+            recruiter_id: item.recruiter_id,
+            status: item.status,
+            budget_min: item.budget_min,
+            budget_max: item.budget_max,
+            created_at: item.created_at,
+            updated_at: item.updated_at
           }));
           
           setJobs(transformedJobs);

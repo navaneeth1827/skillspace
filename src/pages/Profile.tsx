@@ -28,6 +28,7 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   const [profileData, setProfileData] = useState<ProfileData>({
+    id: null,
     full_name: "",
     title: "",
     location: "",
@@ -90,8 +91,9 @@ const Profile = () => {
               : [];
               
           const profileDataFormatted: ProfileData = {
+            id: data.id,
             full_name: data.full_name || "",
-            title: "",
+            title: data.title || "",
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
@@ -101,8 +103,7 @@ const Profile = () => {
             company_name: data.company_name,
             website: data.website,
             created_at: data.created_at,
-            updated_at: data.updated_at,
-            id: data.id
+            updated_at: data.updated_at
           };
           
           setProfileData(profileDataFormatted);

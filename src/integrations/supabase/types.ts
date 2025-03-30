@@ -154,10 +154,16 @@ export type Database = {
         Row: {
           budget_max: number | null
           budget_min: number | null
+          category: string
+          company: string
           created_at: string | null
           description: string
           id: string
+          job_type: string
+          location: string
           recruiter_id: string | null
+          salary: string
+          skills: string[]
           status: string | null
           title: string
           updated_at: string | null
@@ -165,10 +171,16 @@ export type Database = {
         Insert: {
           budget_max?: number | null
           budget_min?: number | null
+          category?: string
+          company?: string
           created_at?: string | null
           description: string
           id?: string
+          job_type?: string
+          location?: string
           recruiter_id?: string | null
+          salary?: string
+          skills?: string[]
           status?: string | null
           title: string
           updated_at?: string | null
@@ -176,10 +188,16 @@ export type Database = {
         Update: {
           budget_max?: number | null
           budget_min?: number | null
+          category?: string
+          company?: string
           created_at?: string | null
           description?: string
           id?: string
+          job_type?: string
+          location?: string
           recruiter_id?: string | null
+          salary?: string
+          skills?: string[]
           status?: string | null
           title?: string
           updated_at?: string | null
@@ -276,7 +294,8 @@ export type Database = {
           hourly_rate: number | null
           id: string
           location: string | null
-          skills: string | null
+          skills: string[] | null
+          title: string | null
           updated_at: string | null
           user_type: string
           website: string | null
@@ -290,7 +309,8 @@ export type Database = {
           hourly_rate?: number | null
           id: string
           location?: string | null
-          skills?: string | null
+          skills?: string[] | null
+          title?: string | null
           updated_at?: string | null
           user_type: string
           website?: string | null
@@ -304,7 +324,8 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           location?: string | null
-          skills?: string | null
+          skills?: string[] | null
+          title?: string | null
           updated_at?: string | null
           user_type?: string
           website?: string | null
@@ -401,10 +422,16 @@ export type Database = {
         Returns: {
           budget_max: number | null
           budget_min: number | null
+          category: string
+          company: string
           created_at: string | null
           description: string
           id: string
+          job_type: string
+          location: string
           recruiter_id: string | null
+          salary: string
+          skills: string[]
           status: string | null
           title: string
           updated_at: string | null

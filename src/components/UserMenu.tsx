@@ -37,6 +37,14 @@ const UserMenu = () => {
         }
         
         if (data) {
+          const skillsArray = Array.isArray(data.skills) 
+            ? data.skills 
+            : data.skills 
+              ? typeof data.skills === 'string' 
+                ? data.skills.split(',').map(s => s.trim()).filter(Boolean)
+                : []
+              : [];
+              
           const profileDataConverted: ProfileData = {
             id: data.id,
             full_name: data.full_name || "",
@@ -44,9 +52,7 @@ const UserMenu = () => {
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
-            skills: typeof data.skills === 'string' && data.skills 
-              ? data.skills.split(',').map(s => s.trim()) 
-              : Array.isArray(data.skills) ? data.skills : [],
+            skills: skillsArray,
             avatar_url: data.avatar_url,
             user_type: data.user_type || "freelancer",
             company_name: data.company_name,
