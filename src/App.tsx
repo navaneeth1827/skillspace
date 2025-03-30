@@ -3,6 +3,7 @@ import React from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 
+import Index from "@/pages/Index";
 import Jobs from "@/pages/Jobs";
 import PostJob from "@/pages/PostJob";
 import Profile from "@/pages/Profile";
@@ -16,7 +17,7 @@ import FindJob from "@/pages/FindJob";
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/dashboard" replace />,
+    element: <Index />,
   },
   {
     path: "/jobs",
