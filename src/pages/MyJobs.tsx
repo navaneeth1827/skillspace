@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +26,6 @@ const MyJobs = () => {
       setIsLoading(true);
       try {
         if (user.user_metadata?.user_type === 'recruiter') {
-          // Fetch jobs posted by this recruiter
           const { data: jobsData, error: jobsError } = await supabase
             .from('jobs')
             .select(`
@@ -37,7 +37,6 @@ const MyJobs = () => {
 
           if (jobsError) throw jobsError;
 
-          // Fetch applications for these jobs
           if (jobsData && jobsData.length > 0) {
             const jobIds = jobsData.map(job => job.id);
             const { data: applicationsData, error: applicationsError } = await supabase
@@ -51,9 +50,7 @@ const MyJobs = () => {
 
             if (applicationsError) throw applicationsError;
 
-            // Make sure user_info is handled correctly
             const processedApplications = applicationsData.map(app => {
-              // If user_info is an error object, provide default values
               if ('error' in app.user_info) {
                 return {
                   ...app,
@@ -66,20 +63,18 @@ const MyJobs = () => {
               }
               return app;
             });
-            
+
             setApplications(processedApplications as JobApplication[]);
           }
-          
-          // Convert fetched jobs to match Job type
+
           const processedJobs = jobsData.map(job => ({
             ...job,
             skills: job.skills || [],
             budget: job.budget_min || 0
           }));
-          
+
           setPostedJobs(processedJobs as Job[]);
         } else {
-          // Fetch job applications submitted by this freelancer
           const { data: appliedJobsData, error: appliedJobsError } = await supabase
             .from('job_applications')
             .select(`
@@ -94,7 +89,6 @@ const MyJobs = () => {
 
           if (appliedJobsError) throw appliedJobsError;
 
-          // Process the applications to ensure they match our JobApplication type
           const processedApplications = appliedJobsData.map(app => {
             return {
               ...app,
@@ -138,7 +132,6 @@ const MyJobs = () => {
 
       if (error) throw error;
 
-      // Update local state
       setApplications(prev => 
         prev.map(app => 
           app.id === applicationId 
@@ -199,7 +192,9 @@ const MyJobs = () => {
                 <div className="text-center p-8">
                   <h3 className="text-xl font-semibold mb-2">You haven't posted any jobs yet</h3>
                   <p className="text-muted-foreground mb-4">Create your first job posting to find talented freelancers.</p>
-                  <Button href="/post-job" variant="default">Post a Job</Button>
+                  <Link to="/post-job">
+                    <Button variant="default">Post a Job</Button>
+                  </Link>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -259,22 +254,22 @@ const MyJobs = () => {
                     ? "Advertise your job to attract talented freelancers."
                     : "Browse available jobs and submit your first application."}
                 </p>
-                <Button href={user.user_metadata?.user_type === 'recruiter' ? "/post-job" : "/jobs"} variant="default">
-                  {user.user_metadata?.user_type === 'recruiter' ? "Post a Job" : "Browse Jobs"}
-                </Button>
+                <Link to={user.user_metadata?.user_type === 'recruiter' ? "/post-job" : "/jobs"}>
+                  <Button variant="default">
+                    {user.user_metadata?.user_type === 'recruiter' ? "Post a Job" : "Browse Jobs"}
+                  </Button>
+                </Link>
               </div>
             ) : (
               <div className="space-y-6">
                 {applications.map((application) => {
-                  // For recruiters: show applicant info
-                  // For freelancers: show job info
                   const isRecruiter = user.user_metadata?.user_type === 'recruiter';
                   const jobInfo = isRecruiter 
                     ? postedJobs.find(job => job.id === application.job_id) 
                     : application.job;
                   
-                  if (!jobInfo && isRecruiter) return null; // Skip if we can't match the job
-                  
+                  if (!jobInfo && isRecruiter) return null;
+
                   return (
                     <Card key={application.id}>
                       <CardHeader>
