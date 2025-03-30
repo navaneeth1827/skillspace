@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 import Jobs from "@/pages/Jobs";
 import PostJob from "@/pages/PostJob";
@@ -42,7 +43,9 @@ const router = createBrowserRouter([
 function App() {
   return (
     <React.StrictMode>
-      <RouterProvider router={router} />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </React.StrictMode>
   );
 }
