@@ -1,7 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Job } from "@/types/profile";
 import { parseSkills } from "@/types/profile";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -12,6 +15,14 @@ import Button from "@/components/Button";
 import AnimatedCard from "@/components/AnimatedCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+
+interface JobApplication {
+  job_id: string;
+  user_id: string;
+  cover_letter: string;
+}
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -22,6 +33,14 @@ const Jobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [showApplyDialog, setShowApplyDialog] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [isApplying, setIsApplying] = useState(false);
+  const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
+
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -78,6 +97,31 @@ const Jobs = () => {
 
     fetchJobs();
 
+    // Fetch user's applied jobs
+    const fetchAppliedJobs = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('job_applications')
+          .select('job_id')
+          .eq('user_id', user.id);
+          
+        if (error) {
+          console.error("Error fetching applied jobs:", error);
+          return;
+        }
+        
+        if (data) {
+          setAppliedJobs(data.map(item => item.job_id));
+        }
+      } catch (error) {
+        console.error("Failed to fetch applied jobs:", error);
+      }
+    };
+    
+    fetchAppliedJobs();
+
     const channel = supabase
       .channel('public:jobs')
       .on('postgres_changes', 
@@ -96,7 +140,77 @@ const Jobs = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user]);
+
+  const handleApply = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to apply for jobs",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!selectedJob) return;
+    
+    if (!coverLetter.trim()) {
+      toast({
+        title: "Cover Letter Required",
+        description: "Please provide a cover letter for your application",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsApplying(true);
+      
+      const application: JobApplication = {
+        job_id: selectedJob.id,
+        user_id: user.id,
+        cover_letter: coverLetter.trim()
+      };
+      
+      const { error } = await supabase
+        .from('job_applications')
+        .insert(application);
+        
+      if (error) {
+        if (error.code === '23505') {
+          toast({
+            title: "Already Applied",
+            description: "You have already applied for this job",
+            variant: "destructive"
+          });
+        } else {
+          console.error("Error applying for job:", error);
+          throw error;
+        }
+      } else {
+        toast({
+          title: "Application Submitted",
+          description: "Your job application has been submitted successfully"
+        });
+        
+        // Update the applied jobs list
+        setAppliedJobs([...appliedJobs, selectedJob.id]);
+        
+        // Close the dialog and reset form
+        setShowApplyDialog(false);
+        setCoverLetter("");
+        setSelectedJob(null);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = 
@@ -147,6 +261,11 @@ const Jobs = () => {
       const months = Math.floor(diffInDays / 30);
       return `${months} ${months === 1 ? 'month' : 'months'} ago`;
     }
+  };
+
+  const openApplyDialog = (job: Job) => {
+    setSelectedJob(job);
+    setShowApplyDialog(true);
   };
 
   return (
@@ -318,9 +437,15 @@ const Jobs = () => {
                             
                             <div className="flex flex-col justify-between items-end gap-2">
                               <span className="text-xs text-muted-foreground">
-                                Posted {formatDate(job.created_at)}
+                                Posted {formatDate(job.created_at || '')}
                               </span>
-                              <Button>Apply Now</Button>
+                              {appliedJobs.includes(job.id) ? (
+                                <Button disabled>Already Applied</Button>
+                              ) : user?.id === job.recruiter_id ? (
+                                <Button disabled>Your Job Post</Button>
+                              ) : (
+                                <Button onClick={() => openApplyDialog(job)}>Apply Now</Button>
+                              )}
                             </div>
                           </div>
                         </AnimatedCard>
@@ -338,6 +463,35 @@ const Jobs = () => {
         </section>
       </main>
       <FooterSection />
+      
+      <Dialog open={showApplyDialog} onOpenChange={setShowApplyDialog}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Apply for {selectedJob?.title}</DialogTitle>
+            <DialogDescription>
+              Submit your application to {selectedJob?.company} for the {selectedJob?.title} position.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="cover-letter">Cover Letter</Label>
+              <Textarea 
+                id="cover-letter" 
+                placeholder="Write a brief introduction and explain why you're a good fit for this role..."
+                value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)}
+                className="min-h-[150px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowApplyDialog(false)}>Cancel</Button>
+            <Button onClick={handleApply} disabled={isApplying}>
+              {isApplying ? "Submitting..." : "Submit Application"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

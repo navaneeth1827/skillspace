@@ -1,209 +1,143 @@
-
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, Menu, MessageSquare, Settings, X, ListTodo, Users, User, LogOut } from "lucide-react";
-import Button from "./Button";
-import AuthModal from "./AuthModal";
-import UserMenu from "./UserMenu";
-import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-
-// Define interface for navigation links that includes the optional icon property
-interface NavLink {
-  text: string;
-  href: string;
-  icon?: React.ReactNode;
-}
+import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const location = useLocation();
   const { user, signOut } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
-
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  const closeMenu = () => setIsMenuOpen(false);
-
-  // Routes that are accessible to both logged-in and non-logged-in users
-  const publicNavLinks: NavLink[] = [
-    { text: "Home", href: "/" },
-  ];
-
-  // Routes that are accessible only to logged-in users
-  const privateNavLinks: NavLink[] = [
-    { text: "Find a Job", href: "/find-job" },
-    { text: "Post a Job", href: "/post-job" },
-    { text: "Community", href: "/community", icon: <Users size={18} /> },
-    { text: "Calendar", href: "/calendar", icon: <Calendar size={18} /> },
-    { text: "Tasks", href: "/tasks", icon: <ListTodo size={18} /> },
-  ];
-
-  // Display different navigation links based on auth status
-  const navLinks = user ? [...publicNavLinks, ...privateNavLinks] : publicNavLinks;
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-    closeMenu();
+    try {
+      await signOut();
+      toast({
+        title: "Signed out",
+        description: "You have been successfully signed out.",
+      });
+      navigate('/sign-in');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
-    <>
-      <header className="sticky top-0 z-50 w-full border-b border-white/10 backdrop-blur-lg">
-        <div className="container flex h-16 items-center justify-between">
-          <Link 
-            to="/" 
-            className="text-xl font-bold flex items-center gap-2 text-gradient"
-            onClick={closeMenu}
-          >
-            <span>Skill</span>
-            <span className="text-primary">Space</span>
+    <nav className="bg-background/10 backdrop-blur-md sticky top-0 z-50 w-full border-b border-white/5">
+      <div className="container flex items-center justify-between py-4">
+        <Link to="/" className="font-bold text-xl">
+          Freelance Platform
+        </Link>
+
+        <div className="hidden md:flex items-center space-x-4">
+          <Link to="/jobs" className="hover:text-muted-foreground">
+            Find Jobs
           </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className={cn(
-                  "text-sm transition-colors hover:text-primary flex items-center gap-1.5",
-                  location.pathname === link.href ? "text-primary" : "text-muted-foreground"
-                )}
-              >
-                {link.icon && link.icon}
-                {link.text}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Desktop Auth Buttons and Settings */}
-          <div className="hidden md:flex items-center gap-4">
-            {user && (
-              <Link 
-                to="/settings"
-                className={cn(
-                  "text-sm transition-colors hover:text-primary",
-                  location.pathname === "/settings" ? "text-primary" : "text-muted-foreground"
-                )}
-              >
-                <Settings size={20} />
-              </Link>
-            )}
-            
-            {user ? (
-              <UserMenu />
-            ) : (
-              <>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setIsAuthModalOpen(true)}
-                >
-                  Login
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.full_name} />
+                    <AvatarFallback>{user?.user_metadata?.full_name?.charAt(0)}</AvatarFallback>
+                  </Avatar>
                 </Button>
-                <Button onClick={() => setIsAuthModalOpen(true)}>
-                  Sign Up
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="flex md:hidden p-2"
-            onClick={toggleMenu}
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to={`/profile/${user.id}`}>Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/my-jobs">My Jobs</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  Sign Out
+                  <LogOut className="ml-auto h-4 w-4" />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Link to="/sign-in" className="hover:text-muted-foreground">
+                Sign In
+              </Link>
+              <Link to="/sign-up" className="primary-button">
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="fixed inset-0 top-16 z-40 w-full animate-fade-in bg-background/95 backdrop-blur-sm md:hidden">
-            <nav className="container flex flex-col gap-6 p-6">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  className={cn(
-                    "text-lg transition-colors hover:text-primary flex items-center gap-2",
-                    location.pathname === link.href ? "text-primary" : "text-muted-foreground"
-                  )}
-                  onClick={closeMenu}
-                >
-                  {link.icon && link.icon}
-                  {link.text}
-                </Link>
-              ))}
-              
-              {user && (
-                <Link
-                  to="/settings"
-                  className={cn(
-                    "text-lg transition-colors hover:text-primary flex items-center gap-2",
-                    location.pathname === "/settings" ? "text-primary" : "text-muted-foreground"
-                  )}
-                  onClick={closeMenu}
-                >
-                  <Settings size={18} />
-                  Settings
-                </Link>
-              )}
-              
+        {/* Mobile Menu */}
+        <div className="md:hidden">
+          <Button variant="outline" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+            <span className="sr-only">Toggle Menu</span>
+          </Button>
+
+          {isMenuOpen && (
+            <div className="absolute top-full right-0 mt-2 py-2 w-48 bg-background/95 backdrop-blur-md rounded-md shadow-md border border-white/5 flex flex-col items-start z-50">
+              <Link to="/jobs" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
+                Find Jobs
+              </Link>
               {user ? (
-                <div className="flex flex-col gap-4 mt-4">
-                  <Link
-                    to="/profile"
-                    className="text-lg transition-colors hover:text-primary flex items-center gap-2"
-                    onClick={closeMenu}
-                  >
-                    <User size={18} />
+                <>
+                  <Link to={`/profile/${user.id}`} className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
                     Profile
                   </Link>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleSignOut}
-                    className="w-full"
-                  >
-                    <LogOut size={18} className="mr-2" />
+                  <Link to="/my-jobs" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">My Jobs</Link>
+                  <button onClick={handleSignOut} className="flex items-center w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
                     Sign Out
-                  </Button>
-                </div>
+                    <LogOut className="ml-auto h-4 w-4" />
+                  </button>
+                </>
               ) : (
-                <div className="flex flex-col gap-4 mt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setIsAuthModalOpen(true);
-                      closeMenu();
-                    }}
-                    className="w-full"
-                  >
-                    Login
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      setIsAuthModalOpen(true);
-                      closeMenu();
-                    }}
-                    className="w-full"
-                  >
+                <>
+                  <Link to="/sign-in" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
+                    Sign In
+                  </Link>
+                  <Link to="/sign-up" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
                     Sign Up
-                  </Button>
-                </div>
+                  </Link>
+                </>
               )}
-            </nav>
-          </div>
-        )}
-      </header>
-
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-      />
-    </>
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
   );
 };
 

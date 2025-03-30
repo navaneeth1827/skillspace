@@ -65,7 +65,7 @@ const PostJob = () => {
     try {
       setIsSubmitting(true);
       
-      // Insert job into database
+      // Insert job into database with status explicitly set to 'active'
       const { data, error } = await supabase
         .from('jobs')
         .insert({
