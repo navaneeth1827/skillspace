@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -37,11 +38,21 @@ const UserMenu = () => {
         
         if (data) {
           const profileDataConverted: ProfileData = {
-            ...data,
+            id: data.id,
+            full_name: data.full_name || "",
+            title: data.title || "",
+            location: data.location || "",
+            bio: data.bio || "",
+            hourly_rate: data.hourly_rate || 0,
             skills: typeof data.skills === 'string' && data.skills 
               ? data.skills.split(',').map(s => s.trim()) 
-              : data.skills || [],
-            title: data.title || ""
+              : Array.isArray(data.skills) ? data.skills : [],
+            avatar_url: data.avatar_url,
+            user_type: data.user_type || "freelancer",
+            company_name: data.company_name,
+            website: data.website,
+            created_at: data.created_at,
+            updated_at: data.updated_at
           };
           
           setProfileData(profileDataConverted);

@@ -50,11 +50,28 @@ const Jobs = () => {
         }
 
         if (data) {
-          setJobs(data as Job[]);
+          // Transform database records to match Job interface
+          const transformedJobs: Job[] = data.map(item => ({
+            id: item.id,
+            title: item.title,
+            company: item.company || 'Unknown Company',
+            location: item.location || 'Remote',
+            job_type: item.job_type || 'Full-time',
+            category: item.category || 'Other',
+            salary: item.budget_min && item.budget_max ? 
+              `$${item.budget_min} - $${item.budget_max}` : 
+              'Competitive',
+            description: item.description,
+            skills: Array.isArray(item.skills) ? item.skills : 
+              (item.skills ? JSON.parse(item.skills) : []),
+            created_at: item.created_at
+          }));
+          
+          setJobs(transformedJobs);
           
           // Extract all unique tags from jobs
           const tagsSet = new Set<string>();
-          data.forEach(job => {
+          transformedJobs.forEach(job => {
             job.skills?.forEach(skill => {
               tagsSet.add(skill);
             });

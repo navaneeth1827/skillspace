@@ -4,18 +4,7 @@ import { ArrowUpRight, Briefcase, DollarSign, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AnimatedCard from "./AnimatedCard";
-
-interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  salary: string;
-  job_type: string;
-  description: string;
-  skills: string[];
-  created_at: string;
-}
+import { Job } from "@/types/profile";
 
 const FeaturedJobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -24,6 +13,7 @@ const FeaturedJobs = () => {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
+        setLoading(true);
         const { data, error } = await supabase
           .from('jobs')
           .select('*')
@@ -37,7 +27,27 @@ const FeaturedJobs = () => {
         }
 
         if (data) {
-          setJobs(data as Job[]);
+          // Transform database records to match Job interface
+          const transformedJobs: Job[] = data.map(item => ({
+            id: item.id,
+            title: item.title,
+            company: item.company || 'Unknown Company',
+            location: item.location || 'Remote',
+            job_type: item.job_type || 'Full-time',
+            salary: item.budget_min && item.budget_max ? 
+              `$${item.budget_min} - $${item.budget_max}` : 
+              'Competitive',
+            description: item.description,
+            skills: Array.isArray(item.skills) ? item.skills : 
+              (item.skills ? JSON.parse(item.skills) : []),
+            recruiter_id: item.recruiter_id,
+            status: item.status,
+            budget_min: item.budget_min,
+            budget_max: item.budget_max,
+            created_at: item.created_at,
+            updated_at: item.updated_at
+          }));
+          setJobs(transformedJobs);
         }
       } catch (error) {
         console.error("Failed to fetch jobs:", error);
