@@ -1,8 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Job } from "@/types/profile";
-import { parseSkills } from "@/types/profile";
+import { Job } from "@/types/job";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,8 +24,8 @@ interface JobApplication {
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedType, setSelectedType] = useState<string>("all-types");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all-categories");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -69,7 +67,7 @@ const Jobs = () => {
                 (item.salary || 'Competitive'),
               category: item.category || 'Development',
               description: item.description || '',
-              skills: parseSkills(item.skills),
+              skills: item.skills || [],
               recruiter_id: item.recruiter_id,
               status: item.status || 'active',
               budget_min: item.budget_min,
@@ -78,7 +76,7 @@ const Jobs = () => {
               updated_at: item.updated_at
             };
           });
-          setJobs(transformedJobs);
+          setJobs(transformedJobs as Job[]);
           
           const tagsSet = new Set<string>();
           transformedJobs.forEach(job => {
@@ -220,11 +218,11 @@ const Jobs = () => {
       job.company.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesType = 
-      selectedType === "" || 
+      selectedType === "all-types" || 
       job.job_type === selectedType;
     
     const matchesCategory = 
-      selectedCategory === "" || 
+      selectedCategory === "all-categories" || 
       job.category === selectedCategory;
     
     const matchesTags = 
@@ -268,6 +266,13 @@ const Jobs = () => {
     setShowApplyDialog(true);
   };
 
+  const clearFilters = () => {
+    setSelectedType("all-types");
+    setSelectedCategory("all-categories");
+    setSelectedTags([]);
+    setSearchTerm("");
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -298,7 +303,7 @@ const Jobs = () => {
                     <SelectValue placeholder="Job Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    <SelectItem value="all-types">All Types</SelectItem>
                     <SelectItem value="Full-time">Full-time</SelectItem>
                     <SelectItem value="Part-time">Part-time</SelectItem>
                     <SelectItem value="Contract">Contract</SelectItem>
@@ -311,7 +316,7 @@ const Jobs = () => {
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all-categories">All Categories</SelectItem>
                     <SelectItem value="Development">Development</SelectItem>
                     <SelectItem value="Design">Design</SelectItem>
                     <SelectItem value="Marketing">Marketing</SelectItem>
@@ -330,16 +335,11 @@ const Jobs = () => {
                   <span>Filters</span>
                 </Button>
                 
-                {(selectedType || selectedCategory || selectedTags.length > 0) && (
+                {(selectedType !== "all-types" || selectedCategory !== "all-categories" || selectedTags.length > 0 || searchTerm) && (
                   <Button 
                     variant="ghost" 
                     className="flex items-center gap-2"
-                    onClick={() => {
-                      setSelectedType("");
-                      setSelectedCategory("");
-                      setSelectedTags([]);
-                      setSearchTerm("");
-                    }}
+                    onClick={clearFilters}
                   >
                     <X className="h-4 w-4" />
                     <span>Clear</span>
