@@ -1,16 +1,16 @@
+
 import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ProfileData } from "@/types/profile";
+import { ProfileData, parseSkills } from "@/types/profile";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button"; 
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
-import { parseSkills } from "@/types/profile";
 import { v4 as uuidv4 } from "uuid";
 
 const Messages = () => {

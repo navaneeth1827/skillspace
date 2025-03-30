@@ -56,11 +56,9 @@ const Profile = () => {
   const [originalProfileData, setOriginalProfileData] = useState<ProfileData | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
   
-  // Determine if this is the user's own profile
-  const isOwnProfile = user?.id === userId || (!userId && user);
+  const isOwnProfile = user?.id === userId || (!userId && !!user);
   const profileId = userId || user?.id;
   
-  // Initialize the form with profile data
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -78,7 +76,6 @@ const Profile = () => {
     }
   });
   
-  // Get portfolio, experience, education, and reviews data
   const {
     portfolio,
     experience,
@@ -137,7 +134,6 @@ const Profile = () => {
           setProfileData(profileDataFormatted);
           setOriginalProfileData(profileDataFormatted);
 
-          // Set form state if this is the user's own profile
           if (isOwnProfile) {
             form.reset(profileDataFormatted);
           }
@@ -156,7 +152,6 @@ const Profile = () => {
     try {
       setIsSaving(true);
 
-      // Format skills array properly
       let skillsArray = values.skills || [];
       if (typeof values.skills === 'string') {
         skillsArray = parseSkills(values.skills);
@@ -181,7 +176,6 @@ const Profile = () => {
         throw error;
       }
 
-      // Update local state
       setProfileData({
         ...profileData!,
         ...values,
@@ -213,7 +207,6 @@ const Profile = () => {
   };
 
   const handleCancelEdit = () => {
-    // Reset form to original data
     if (originalProfileData) {
       form.reset(originalProfileData);
     }
@@ -258,7 +251,6 @@ const Profile = () => {
       <main className="flex-1 py-8">
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Profile Sidebar */}
             <div className="md:col-span-1">
               <div className="glass-card p-6 text-center">
                 <div className="relative mx-auto w-32 h-32 mb-4">
@@ -427,7 +419,6 @@ const Profile = () => {
                 )}
               </div>
               
-              {/* Skills Section */}
               <div className="glass-card p-6 mt-6">
                 <h2 className="font-semibold mb-4">Skills</h2>
                 
@@ -471,7 +462,6 @@ const Profile = () => {
                 )}
               </div>
               
-              {/* Bio Section */}
               <div className="glass-card p-6 mt-6">
                 <h2 className="font-semibold mb-4">About</h2>
                 
@@ -509,7 +499,6 @@ const Profile = () => {
               </div>
             </div>
             
-            {/* Main Content */}
             <div className="md:col-span-2">
               <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="mb-6">
@@ -520,7 +509,6 @@ const Profile = () => {
                 </TabsList>
                 
                 <TabsContent value="overview" className="space-y-6">
-                  {/* Portfolio Preview */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-xl font-semibold">Portfolio</h2>
@@ -564,7 +552,6 @@ const Profile = () => {
                   
                   <Separator />
                   
-                  {/* Experience Preview */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-xl font-semibold">Experience</h2>
@@ -603,7 +590,6 @@ const Profile = () => {
                   
                   <Separator />
                   
-                  {/* Education Preview */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-xl font-semibold">Education</h2>
@@ -629,7 +615,6 @@ const Profile = () => {
                   
                   <Separator />
                   
-                  {/* Reviews Preview */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-xl font-semibold">Reviews</h2>
@@ -658,7 +643,7 @@ const Profile = () => {
                 <TabsContent value="portfolio">
                   <PortfolioSection 
                     items={portfolio}
-                    isEditing={isOwnProfile}
+                    isEditing={!!isOwnProfile}
                     onAdd={addPortfolioItem}
                     onUpdate={updatePortfolioItem}
                     onDelete={deletePortfolioItem}
@@ -668,7 +653,7 @@ const Profile = () => {
                 <TabsContent value="experience">
                   <ExperienceSection 
                     items={experience}
-                    isEditing={isOwnProfile}
+                    isEditing={!!isOwnProfile}
                     onAdd={addExperienceItem}
                     onUpdate={updateExperienceItem}
                     onDelete={deleteExperienceItem}
@@ -676,7 +661,7 @@ const Profile = () => {
                   
                   <EducationSection 
                     items={education}
-                    isEditing={isOwnProfile}
+                    isEditing={!!isOwnProfile}
                     onAdd={addEducationItem}
                     onUpdate={updateEducationItem}
                     onDelete={deleteEducationItem}
