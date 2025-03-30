@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -273,7 +272,7 @@ const MyJobs = () => {
                       
                       <div className="flex justify-end gap-2">
                         <Button variant="outline">View Applications</Button>
-                        <Button variant={job.status === 'active' ? 'destructive' : 'default'}>
+                        <Button variant={job.status === 'active' ? 'default' : 'default'}>
                           {job.status === 'active' ? 'Close Job' : 'Reopen Job'}
                         </Button>
                       </div>

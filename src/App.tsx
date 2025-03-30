@@ -1,19 +1,18 @@
+
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
-import Home from "@/pages/Home";
 import Jobs from "@/pages/Jobs";
 import PostJob from "@/pages/PostJob";
 import Profile from "@/pages/Profile";
 import MyJobs from "@/pages/MyJobs";
-import SignUp from "@/pages/SignUp";
-import SignIn from "@/pages/SignIn";
-import SignOut from "@/pages/SignOut";
+import Messages from "@/pages/Messages";
+import { Navigate } from 'react-router-dom';
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Home />,
+    element: <Navigate to="/jobs" replace />,
   },
   {
     path: "/jobs",
@@ -36,16 +35,8 @@ const router = createBrowserRouter([
     element: <MyJobs />,
   },
   {
-    path: "/sign-up",
-    element: <SignUp />,
-  },
-  {
-    path: "/sign-in",
-    element: <SignIn />,
-  },
-  {
-    path: "/sign-out",
-    element: <SignOut />,
+    path: "/messages",
+    element: <Messages />,
   },
 ]);
 

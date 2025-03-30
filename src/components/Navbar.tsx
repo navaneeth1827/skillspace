@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { LogOut, MessageSquare } from "lucide-react";
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
@@ -50,31 +51,40 @@ const Navbar = () => {
             Find Jobs
           </Link>
           {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.full_name} />
-                    <AvatarFallback>{user?.user_metadata?.full_name?.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to={`/profile/${user.id}`}>Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/my-jobs">My Jobs</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  Sign Out
-                  <LogOut className="ml-auto h-4 w-4" />
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              <Link to="/messages" className="hover:text-muted-foreground">
+                <MessageSquare className="inline h-4 w-4 mr-1" />
+                Messages
+              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8 p-0">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.full_name} />
+                      <AvatarFallback>{user?.user_metadata?.full_name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to={`/profile/${user.id}`}>Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-jobs">My Jobs</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/post-job">Post a Job</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    Sign Out
+                    <LogOut className="ml-auto h-4 w-4" />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Link to="/sign-in" className="hover:text-muted-foreground">
@@ -114,10 +124,14 @@ const Navbar = () => {
               </Link>
               {user ? (
                 <>
+                  <Link to="/messages" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
+                    Messages
+                  </Link>
                   <Link to={`/profile/${user.id}`} className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
                     Profile
                   </Link>
                   <Link to="/my-jobs" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">My Jobs</Link>
+                  <Link to="/post-job" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">Post a Job</Link>
                   <button onClick={handleSignOut} className="flex items-center w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
                     Sign Out
                     <LogOut className="ml-auto h-4 w-4" />
