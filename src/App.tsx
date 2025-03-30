@@ -8,15 +8,23 @@ import PostJob from "@/pages/PostJob";
 import Profile from "@/pages/Profile";
 import MyJobs from "@/pages/MyJobs";
 import Messages from "@/pages/Messages";
+import Dashboard from "@/pages/Dashboard";
+import Community from "@/pages/Community";
+import Calendar from "@/pages/Calendar";
+import FindJob from "@/pages/FindJob";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/jobs" replace />,
+    element: <Navigate to="/dashboard" replace />,
   },
   {
     path: "/jobs",
     element: <Jobs />,
+  },
+  {
+    path: "/find-job",
+    element: <FindJob />,
   },
   {
     path: "/post-job",
@@ -37,6 +45,18 @@ const router = createBrowserRouter([
   {
     path: "/messages",
     element: <Messages />,
+  },
+  {
+    path: "/dashboard",
+    element: <Dashboard />,
+  },
+  {
+    path: "/community",
+    element: <Community />,
+  },
+  {
+    path: "/calendar",
+    element: <Calendar />,
   },
 ]);
 

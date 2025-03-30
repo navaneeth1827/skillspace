@@ -14,7 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { LogOut, MessageSquare } from "lucide-react";
+import { LogOut, MessageSquare, Calendar, Users, Home, Briefcase } from "lucide-react";
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
@@ -47,8 +47,21 @@ const Navbar = () => {
         </Link>
 
         <div className="hidden md:flex items-center space-x-4">
+          <Link to="/dashboard" className="hover:text-muted-foreground">
+            <Home className="inline h-4 w-4 mr-1" />
+            Dashboard
+          </Link>
           <Link to="/jobs" className="hover:text-muted-foreground">
+            <Briefcase className="inline h-4 w-4 mr-1" />
             Find Jobs
+          </Link>
+          <Link to="/community" className="hover:text-muted-foreground">
+            <Users className="inline h-4 w-4 mr-1" />
+            Community
+          </Link>
+          <Link to="/calendar" className="hover:text-muted-foreground">
+            <Calendar className="inline h-4 w-4 mr-1" />
+            Calendar
           </Link>
           {user ? (
             <>
@@ -119,8 +132,17 @@ const Navbar = () => {
 
           {isMenuOpen && (
             <div className="absolute top-full right-0 mt-2 py-2 w-48 bg-background/95 backdrop-blur-md rounded-md shadow-md border border-white/5 flex flex-col items-start z-50">
+              <Link to="/dashboard" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
+                Dashboard
+              </Link>
               <Link to="/jobs" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
                 Find Jobs
+              </Link>
+              <Link to="/community" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
+                Community
+              </Link>
+              <Link to="/calendar" className="block w-full px-4 py-2 text-sm hover:bg-secondary hover:text-white">
+                Calendar
               </Link>
               {user ? (
                 <>
