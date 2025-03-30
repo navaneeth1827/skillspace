@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -40,6 +41,7 @@ const FindJob = () => {
         }
         
         if (data) {
+          // Handle skills properly with better type checking
           let skillsArray: string[] = [];
           if (Array.isArray(data.skills)) {
             skillsArray = data.skills;

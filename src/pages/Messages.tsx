@@ -6,12 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ProfileData } from "@/types/profile";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button"; // Fixed import from ui/button
+import { Button } from "@/components/ui/button"; 
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
-import { v4 as uuidv4 } from 'uuid';
+// Remove the static import of uuid and use dynamic import in the function
 
 const Messages = () => {
   const { user } = useAuth();
@@ -80,7 +80,13 @@ const Messages = () => {
             };
           });
           
-          setUserProfiles(formattedProfiles);
+          // Combine with any profiles we already have
+          const combinedProfiles = [...formattedProfiles];
+          if (currentChatUser && !combinedProfiles.some(p => p.id === currentChatUser.id)) {
+            combinedProfiles.push(currentChatUser);
+          }
+          
+          setUserProfiles(combinedProfiles);
         }
       } catch (error) {
         console.error('Error:', error);
@@ -162,7 +168,9 @@ const Messages = () => {
     if (!user || !currentChatUser || !newMessage.trim()) return;
     
     try {
+      const { v4: uuidv4 } = await import('uuid');
       const messageId = uuidv4();
+      
       const { error } = await supabase
         .from('chat_messages')
         .insert({

@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Job } from "@/types/profile";
+
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import { Briefcase, DollarSign, Filter, MapPin, Search, X } from "lucide-react";
@@ -8,8 +11,6 @@ import Button from "@/components/Button";
 import AnimatedCard from "@/components/AnimatedCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { Job } from "@/types/profile";
 
 const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -28,7 +29,6 @@ const Jobs = () => {
         const { data, error } = await supabase
           .from('jobs')
           .select('*')
-          .eq('status', 'active')
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -37,28 +37,36 @@ const Jobs = () => {
         }
 
         if (data) {
-          const transformedJobs: Job[] = data.map(item => ({
-            id: item.id,
-            title: item.title,
-            company: item.company || 'Unknown Company',
-            location: item.location || 'Remote',
-            job_type: item.job_type || 'Full-time',
-            salary: item.budget_min && item.budget_max ? 
-              `$${item.budget_min} - $${item.budget_max}` : 
-              (item.salary || 'Competitive'),
-            category: item.category || 'Development',
-            description: item.description || '',
-            skills: Array.isArray(item.skills) ? item.skills : 
-              (item.skills ? (typeof item.skills === 'string' ? 
-                item.skills.split(',').map(s => s.trim()).filter(Boolean) : []) : []),
-            recruiter_id: item.recruiter_id,
-            status: item.status || 'active',
-            budget_min: item.budget_min,
-            budget_max: item.budget_max,
-            created_at: item.created_at,
-            updated_at: item.updated_at
-          }));
-          
+          const transformedJobs: Job[] = data.map(item => {
+            let skillsArray: string[] = [];
+            if (Array.isArray(item.skills)) {
+              skillsArray = item.skills;
+            } else if (item.skills) {
+              if (typeof item.skills === 'string') {
+                skillsArray = item.skills.split(',').map(s => s.trim()).filter(Boolean);
+              }
+            }
+            
+            return {
+              id: item.id,
+              title: item.title,
+              company: item.company || 'Unknown Company',
+              location: item.location || 'Remote',
+              job_type: item.job_type || 'Full-time',
+              salary: item.budget_min && item.budget_max ? 
+                `$${item.budget_min} - $${item.budget_max}` : 
+                (item.salary || 'Competitive'),
+              category: item.category || 'Development',
+              description: item.description || '',
+              skills: skillsArray,
+              recruiter_id: item.recruiter_id,
+              status: item.status || 'active',
+              budget_min: item.budget_min,
+              budget_max: item.budget_max,
+              created_at: item.created_at,
+              updated_at: item.updated_at
+            };
+          });
           setJobs(transformedJobs);
           
           const tagsSet = new Set<string>();

@@ -116,7 +116,7 @@ const Profile = () => {
         }
         
         if (data) {
-          // Handle skills properly
+          // Handle skills properly with better type checking
           let skillsArray: string[] = [];
           if (Array.isArray(data.skills)) {
             skillsArray = data.skills;
