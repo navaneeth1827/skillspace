@@ -1,300 +1,213 @@
-import { useState, useEffect, useRef } from "react";
-import Navbar from "@/components/Navbar";
-import FooterSection from "@/components/FooterSection";
+
+import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ProfileData, parseSkills } from "@/types/profile";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button"; 
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ChatMessage } from "@/components/ChatMessage";
+import { useChat } from "@/hooks/useChat";
+import { useProfileData } from "@/hooks/useProfileData";
+import Navbar from "@/components/Navbar";
+import { ProfileData } from "@/types/profile";
 
 const Messages = () => {
   const { user } = useAuth();
-  const [userProfiles, setUserProfiles] = useState<ProfileData[]>([]);
-  const [currentChatUser, setCurrentChatUser] = useState<ProfileData | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-
+  const { profile } = useProfileData(user?.id);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [contacts, setContacts] = useState<ProfileData[]>([]);
+  const { messages, sendMessage, loading } = useChat(selectedUser);
+  
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      if (!user) return;
+    if (!user) return;
+    
+    const fetchContacts = async () => {
       try {
-        const { data, error } = await supabase.from('profiles').select('*').neq('id', user.id).order('full_name', {
-          ascending: true
-        });
-        if (error) {
-          console.error('Error fetching profiles:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load user profiles",
-            variant: "destructive"
-          });
+        // Get users who have exchanged messages with the current user
+        const { data: sentMessages, error: sentError } = await supabase
+          .from('messages')
+          .select('recipient_id')
+          .eq('sender_id', user.id);
+          
+        const { data: receivedMessages, error: receivedError } = await supabase
+          .from('messages')
+          .select('sender_id')
+          .eq('recipient_id', user.id);
+        
+        if (sentError || receivedError) {
+          console.error("Error fetching messages:", sentError || receivedError);
           return;
         }
-        if (data) {
-          const formattedProfiles = data.map((profile) => ({
-            id: profile.id,
-            full_name: profile.full_name || "",
-            title: profile.title || "",
-            location: profile.location || "",
-            bio: profile.bio || "",
-            hourly_rate: profile.hourly_rate || 0,
-            skills: parseSkills(profile.skills),
-            avatar_url: profile.avatar_url,
-            user_type: profile.user_type || "freelancer",
-            company_name: profile.company_name,
-            website: profile.website,
-            created_at: profile.created_at,
-            updated_at: profile.updated_at
-          }));
-          
-          const combinedProfiles = [...formattedProfiles];
-          if (currentChatUser && !combinedProfiles.some(p => p.id === currentChatUser.id)) {
-            combinedProfiles.push(currentChatUser);
-          }
-          
-          setUserProfiles(combinedProfiles);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      }
-    };
-    
-    const fetchMessages = async () => {
-      if (!user || !currentChatUser) return;
-      
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('chat_messages')
+        
+        // Extract unique user IDs
+        const sentUserIds = sentMessages?.map(msg => msg.recipient_id) || [];
+        const receivedUserIds = receivedMessages?.map(msg => msg.sender_id) || [];
+        const uniqueUserIds = [...new Set([...sentUserIds, ...receivedUserIds])];
+        
+        if (uniqueUserIds.length === 0) return;
+        
+        // Fetch user profiles
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
           .select('*')
-          .or(`and(sender_id.eq.${user.id},receiver_id.eq.${currentChatUser.id}),and(sender_id.eq.${currentChatUser.id},receiver_id.eq.${user.id})`)
-          .order('created_at', { ascending: true });
-        
-        if (error) {
-          console.error('Error fetching messages:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load messages",
-            variant: "destructive",
-          });
+          .in('id', uniqueUserIds);
+          
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
           return;
         }
         
-        if (data) {
-          setMessages(data);
-          
-          const unreadMessages = data.filter(msg => msg.receiver_id === user.id && !msg.read);
-          if (unreadMessages.length > 0) {
-            const messageIds = unreadMessages.map(msg => msg.id);
-            const { error: updateError } = await supabase
-              .from('chat_messages')
-              .update({ read: true })
-              .in('id', messageIds);
-              
-            if (updateError) {
-              console.error('Error marking messages as read:', updateError);
-            }
-          }
+        setContacts(profiles || []);
+        
+        // Auto-select the first contact if none is selected
+        if (!selectedUser && profiles && profiles.length > 0) {
+          setSelectedUser(profiles[0].id);
         }
       } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
+        console.error("Error in fetching contacts:", error);
       }
     };
     
-    fetchProfiles();
-    
-    if (currentChatUser) {
-      fetchMessages();
-    }
-    
-    const channel = supabase
-      .channel('public:chat_messages')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `or(and(sender_id.eq.${user?.id},receiver_id.eq.${currentChatUser?.id}),and(sender_id.eq.${currentChatUser?.id},receiver_id.eq.${user?.id}))`
-      }, (payload) => {
-        if (payload.new) {
-          setMessages(prevMessages => [...prevMessages, payload.new]);
-        }
-      })
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, currentChatUser, toast]);
-
+    fetchContacts();
+  }, [user, selectedUser]);
+  
   const handleSendMessage = async () => {
-    if (!user || !currentChatUser || !newMessage.trim()) return;
+    if (!message.trim() || !selectedUser || !user) return;
     
-    try {
-      const messageId = uuidv4();
-      
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert({
-          id: messageId,
-          sender_id: user.id,
-          receiver_id: currentChatUser.id,
-          content: newMessage.trim(),
-          read: false
-        });
-        
-      if (error) {
-        console.error('Error sending message:', error);
-        toast({
-          title: "Error",
-          description: "Failed to send message",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setNewMessage("");
-    } catch (error) {
-      console.error('Error:', error);
-    }
+    await sendMessage({
+      content: message,
+      sender_id: user.id,
+      recipient_id: selectedUser,
+      // Use appropriate values from profile, with fallbacks for optional properties
+      sender_name: profile?.full_name || '',
+      sender_avatar: profile?.avatar_url || '',
+      sender_title: profile?.title || '',
+    });
+    
+    setMessage("");
   };
-
+  
+  const getUserInfo = (userId: string) => {
+    const contact = contacts.find(c => c.id === userId);
+    return {
+      id: contact?.id || '',
+      full_name: contact?.full_name || '',
+      title: contact?.title || '',
+      location: contact?.location || '',
+      bio: contact?.bio || '',
+      hourly_rate: contact?.hourly_rate || 0,
+      skills: contact?.skills || [],
+      avatar_url: contact?.avatar_url || '',
+      user_type: contact?.user_type || '',
+      company_name: contact?.company_name || '',
+      website: contact?.website || '',
+      created_at: contact?.created_at || '',
+      updated_at: contact?.updated_at || ''
+    };
+  };
+  
+  if (!user) {
+    return (
+      <div>
+        <Navbar />
+        <div className="container py-8">
+          <h1 className="text-2xl font-bold mb-6">Messages</h1>
+          <p>Please sign in to view your messages.</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <div className="flex min-h-screen flex-col">
+    <div>
       <Navbar />
-      <main className="flex-1">
-        <section className="w-full py-12 md:py-20 border-b border-white/5">
-          <div className="container px-4 md:px-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="md:col-span-1">
-                <h2 className="text-2xl font-bold tracking-tighter mb-4">Messages</h2>
-                <div className="relative mb-4">
-                  <Input
-                    placeholder="Search users..."
-                    className="pl-10"
-                  />
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
+      <div className="container py-8">
+        <h1 className="text-2xl font-bold mb-6">Messages</h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* Contacts Sidebar */}
+          <Card className="md:col-span-1">
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-4">Contacts</h2>
+              {contacts.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No contacts yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {contacts.map((contact) => (
+                    <div 
+                      key={contact.id} 
+                      className={`flex items-center gap-3 p-2 rounded-md cursor-pointer ${selectedUser === contact.id ? 'bg-secondary/20' : 'hover:bg-secondary/10'}`}
+                      onClick={() => setSelectedUser(contact.id)}
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={contact.avatar_url || ''} alt={contact.full_name} />
+                        <AvatarFallback>{contact.full_name?.charAt(0) || '?'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{contact.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{contact.title || 'No title'}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <ScrollArea className="h-[400px] rounded-md">
-                  <div className="space-y-2">
-                    {userProfiles.map((profile) => (
-                      <Button
-                        key={profile.id}
-                        variant="ghost"
-                        className={`w-full justify-start rounded-md ${currentChatUser?.id === profile.id ? 'bg-secondary hover:bg-secondary' : 'hover:bg-secondary/5'}`}
-                        onClick={() => setCurrentChatUser(profile)}
-                      >
-                        <Avatar className="mr-2 h-8 w-8">
-                          <AvatarImage src={profile.avatar_url || "/placeholder.svg"} alt={profile.full_name} />
-                          <AvatarFallback>{profile.full_name?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span>{profile.full_name}</span>
-                      </Button>
-                    ))}
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Chat Area */}
+          <Card className="md:col-span-3">
+            <CardContent className="p-4">
+              {selectedUser ? (
+                <div className="flex flex-col h-[600px]">
+                  {/* Chat Header */}
+                  <div className="flex items-center gap-3 p-3 border-b">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={getUserInfo(selectedUser).avatar_url} alt={getUserInfo(selectedUser).full_name} />
+                      <AvatarFallback>{getUserInfo(selectedUser).full_name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{getUserInfo(selectedUser).full_name}</p>
+                      <p className="text-xs text-muted-foreground">{getUserInfo(selectedUser).title}</p>
+                    </div>
                   </div>
-                </ScrollArea>
-              </div>
-              
-              <div className="md:col-span-3">
-                {currentChatUser ? (
-                  <div className="flex flex-col h-full">
-                    <div className="border-b border-white/10 p-4">
-                      <div className="flex items-center space-x-4">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={currentChatUser.avatar_url || "/placeholder.svg"} alt={currentChatUser.full_name} />
-                          <AvatarFallback>{currentChatUser.full_name?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="text-lg font-semibold">{currentChatUser.full_name}</h3>
-                          <p className="text-sm text-muted-foreground">{currentChatUser.title || 'User'}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex-1 overflow-y-auto p-4" ref={chatContainerRef}>
-                      {loading ? (
-                        <div className="flex justify-center items-center h-full">
-                          <div className="animate-spin h-8 w-8 border-2 border-navy-accent rounded-full border-t-transparent"></div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {messages.map((message) => (
-                            <div
-                              key={message.id}
-                              className={`flex flex-col ${message.sender_id === user?.id ? 'items-end' : 'items-start'}`}
-                            >
-                              <div
-                                className={`rounded-lg px-4 py-2 max-w-[80%] ${message.sender_id === user?.id ? 'bg-navy-accent text-white' : 'bg-secondary text-foreground'}`}
-                              >
-                                {message.content}
-                              </div>
-                              <span className="text-xs text-muted-foreground mt-1">
-                                {new Date(message.created_at).toLocaleTimeString()}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="p-4 border-t border-white/10">
-                      <div className="flex items-center space-x-2">
-                        <Input
-                          placeholder="Type your message..."
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSendMessage();
-                            }
-                          }}
+                  
+                  {/* Messages List */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.length === 0 ? (
+                      <p className="text-center text-muted-foreground">No messages yet. Start the conversation!</p>
+                    ) : (
+                      messages.map((msg) => (
+                        <ChatMessage
+                          key={msg.id}
+                          message={msg}
+                          isOutgoing={msg.sender_id === user.id}
                         />
-                        <Button onClick={handleSendMessage}>
-                          Send
-                          <Send className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                      ))
+                    )}
                   </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-xl text-muted-foreground">Select a user to start chatting</p>
+                  
+                  {/* Message Input */}
+                  <div className="p-3 border-t flex gap-2">
+                    <Input
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    />
+                    <Button onClick={handleSendMessage} disabled={loading}>Send</Button>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-      <FooterSection />
+                </div>
+              ) : (
+                <div className="h-[600px] flex items-center justify-center">
+                  <p className="text-muted-foreground">Select a contact to start chatting</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };

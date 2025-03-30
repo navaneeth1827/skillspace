@@ -1,18 +1,35 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { Job } from "@/types/profile";
-import { parseSkills } from "@/types/profile";
 
-import Navbar from "@/components/Navbar";
-import FooterSection from "@/components/FooterSection";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Briefcase, DollarSign, MapPin, File, Clock } from "lucide-react";
-import Button from "@/components/Button";
-import AnimatedCard from "@/components/AnimatedCard";
-import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import Navbar from '@/components/Navbar';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
+// Job type definition
+interface Job {
+  id: string;
+  title: string;
+  description: string;
+  budget: number;
+  location: string;
+  recruiter_id: string;
+  created_at: string;
+  status: 'open' | 'closed' | 'pending' | 'active';
+  skills_required: string[];
+  deadline: string | null;
+  recruiter_info?: {
+    full_name: string;
+    avatar_url: string;
+    company_name: string;
+  };
+}
+
+// Application type definition
 interface JobApplication {
   id: string;
   job_id: string;
@@ -21,352 +38,399 @@ interface JobApplication {
   cover_letter: string;
   created_at: string;
   job?: Job;
+  user_info?: {
+    full_name: string;
+    avatar_url: string;
+    title: string;
+  };
 }
 
 const MyJobs = () => {
-  const [postedJobs, setPostedJobs] = useState<Job[]>([]);
-  const [appliedJobs, setAppliedJobs] = useState<JobApplication[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [postedJobs, setPostedJobs] = useState<Job[]>([]);
+  const [appliedJobs, setAppliedJobs] = useState<JobApplication[]>([]);
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-
+    
     const fetchMyJobs = async () => {
       setIsLoading(true);
+      
       try {
         // Fetch jobs posted by the user
-        const { data: postedJobsData, error: postedJobsError } = await supabase
+        const { data: jobsData, error: jobsError } = await supabase
           .from('jobs')
-          .select('*')
+          .select(`
+            *,
+            recruiter_info:profiles!jobs_recruiter_id_fkey(
+              full_name,
+              avatar_url,
+              company_name
+            )
+          `)
           .eq('recruiter_id', user.id)
           .order('created_at', { ascending: false });
-
-        if (postedJobsError) {
-          console.error("Error fetching posted jobs:", postedJobsError);
-          throw postedJobsError;
-        }
-
-        // Transform posted jobs data
-        const transformedPostedJobs = postedJobsData.map(item => ({
-          id: item.id,
-          title: item.title,
-          company: item.company || 'Unknown Company',
-          location: item.location || 'Remote',
-          job_type: item.job_type || 'Full-time',
-          salary: item.budget_min && item.budget_max ? 
-            `$${item.budget_min} - $${item.budget_max}` : 
-            (item.salary || 'Competitive'),
-          category: item.category || 'Development',
-          description: item.description || '',
-          skills: parseSkills(item.skills),
-          recruiter_id: item.recruiter_id,
-          status: item.status || 'active',
-          budget_min: item.budget_min,
-          budget_max: item.budget_max,
-          created_at: item.created_at,
-          updated_at: item.updated_at
-        }));
-
-        setPostedJobs(transformedPostedJobs);
-
-        // Fetch applications made by the user
-        const { data: applicationsData, error: applicationsError } = await supabase
-          .from('job_applications')
-          .select('*')
-          .eq('user_id', user.id);
-
-        if (applicationsError) {
-          console.error("Error fetching job applications:", applicationsError);
-          throw applicationsError;
-        }
-
-        if (applicationsData.length > 0) {
-          // Get job details for each application
-          const jobIds = applicationsData.map(app => app.job_id);
+        
+        if (jobsError) throw jobsError;
+        
+        // Fetch applications for the user's jobs
+        const jobIds = jobsData?.map(job => job.id) || [];
+        
+        let applicationsData: JobApplication[] = [];
+        
+        if (jobIds.length > 0) {
+          const { data: appData, error: appError } = await supabase
+            .from('job_applications')
+            .select(`
+              *,
+              user_info:profiles!job_applications_user_id_fkey(
+                full_name,
+                avatar_url,
+                title
+              )
+            `)
+            .in('job_id', jobIds);
           
-          const { data: jobsData, error: jobsError } = await supabase
-            .from('jobs')
-            .select('*')
-            .in('id', jobIds);
-
-          if (jobsError) {
-            console.error("Error fetching applied jobs details:", jobsError);
-            throw jobsError;
-          }
-
-          // Transform jobs data
-          const jobsMap = new Map();
-          jobsData.forEach(job => {
-            jobsMap.set(job.id, {
-              id: job.id,
-              title: job.title,
-              company: job.company || 'Unknown Company',
-              location: job.location || 'Remote',
-              job_type: job.job_type || 'Full-time',
-              salary: job.budget_min && job.budget_max ? 
-                `$${job.budget_min} - $${job.budget_max}` : 
-                (job.salary || 'Competitive'),
-              category: job.category || 'Development',
-              description: job.description || '',
-              skills: parseSkills(job.skills),
-              recruiter_id: job.recruiter_id,
-              status: job.status || 'active',
-              created_at: job.created_at,
-              updated_at: job.updated_at
-            });
-          });
-
-          // Merge application data with job details
-          const applicationsWithJobDetails = applicationsData.map(app => ({
-            ...app,
-            job: jobsMap.get(app.job_id)
-          }));
-
-          setAppliedJobs(applicationsWithJobDetails);
-        } else {
-          setAppliedJobs([]);
+          if (appError) throw appError;
+          applicationsData = appData || [];
         }
+        
+        // Fetch jobs the user has applied to
+        const { data: appliedData, error: appliedError } = await supabase
+          .from('job_applications')
+          .select(`
+            *,
+            job:jobs(
+              *,
+              recruiter_info:profiles!jobs_recruiter_id_fkey(
+                full_name,
+                avatar_url,
+                company_name
+              )
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (appliedError) throw appliedError;
+        
+        setPostedJobs(jobsData || []);
+        setApplications(applicationsData);
+        setAppliedJobs(appliedData || []);
       } catch (error) {
-        console.error("Error fetching jobs data:", error);
+        console.error('Error fetching jobs:', error);
         toast({
-          title: "Error",
-          description: "Failed to load jobs data. Please try again.",
-          variant: "destructive"
+          title: 'Error',
+          description: 'Failed to load job data.',
+          variant: 'destructive',
         });
       } finally {
         setIsLoading(false);
       }
     };
-
+    
     fetchMyJobs();
   }, [user, toast]);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    }).format(date);
+  const handleCloseJob = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ status: 'closed' })
+        .eq('id', jobId);
+      
+      if (error) throw error;
+      
+      setPostedJobs(prev => 
+        prev.map(job => job.id === jobId ? { ...job, status: 'closed' } : job)
+      );
+      
+      toast({
+        title: 'Success',
+        description: 'Job has been closed.',
+      });
+    } catch (error) {
+      console.error('Error closing job:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to close the job.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Pending</Badge>;
-      case 'accepted':
-        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Accepted</Badge>;
-      case 'rejected':
-        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">Rejected</Badge>;
-      case 'active':
-        return <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">Active</Badge>;
-      case 'closed':
-        return <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">Closed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const handleReOpenJob = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ status: 'open' })
+        .eq('id', jobId);
+      
+      if (error) throw error;
+      
+      setPostedJobs(prev => 
+        prev.map(job => job.id === jobId ? { ...job, status: 'open' } : job)
+      );
+      
+      toast({
+        title: 'Success',
+        description: 'Job has been reopened.',
+      });
+    } catch (error) {
+      console.error('Error reopening job:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to reopen the job.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleApplicationAction = async (applicationId: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('job_applications')
+        .update({ status })
+        .eq('id', applicationId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setApplications(prev => 
+        prev.map(app => app.id === applicationId ? { ...app, status } : app)
+      );
+      
+      toast({
+        title: 'Success',
+        description: `Application ${status}.`,
+      });
+    } catch (error) {
+      console.error('Error updating application:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update the application status.',
+        variant: 'destructive',
+      });
     }
   };
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div>
         <Navbar />
-        <main className="flex-1">
-          <div className="container px-4 md:px-6 max-w-4xl py-12">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <h1 className="text-3xl font-bold tracking-tighter">My Jobs</h1>
-              <p className="text-muted-foreground">
-                Please sign in to view your jobs
-              </p>
-              <Button>Sign In</Button>
-            </div>
-          </div>
-        </main>
-        <FooterSection />
+        <div className="container py-8">
+          <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
+          <p>Please sign in to view your jobs.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div>
       <Navbar />
-      <main className="flex-1">
-        <div className="container px-4 md:px-6 max-w-4xl py-12">
-          <div className="flex flex-col items-center justify-center space-y-4 text-center mb-10">
-            <h1 className="text-3xl font-bold tracking-tighter">My Jobs</h1>
-            <p className="text-muted-foreground">
-              Manage your job postings and applications
-            </p>
-          </div>
-
-          <Tabs defaultValue="posted" className="space-y-8">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="posted">Jobs Posted</TabsTrigger>
-              <TabsTrigger value="applied">Jobs Applied</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="posted" className="space-y-4">
-              {isLoading ? (
-                <div className="flex justify-center items-center h-40">
-                  <div className="animate-spin h-8 w-8 border-2 border-navy-accent rounded-full border-t-transparent"></div>
-                </div>
-              ) : postedJobs.length > 0 ? (
-                postedJobs.map((job, index) => (
-                  <AnimatedCard
-                    key={job.id}
-                    className="hover-shadow"
-                    delay={`${index * 0.05}s`}
-                  >
-                    <div className="flex flex-col justify-between space-y-4">
-                      <div>
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-lg">{job.title}</h3>
-                          {getStatusBadge(job.status)}
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                            <Briefcase className="mr-1 h-3 w-3" />
-                            {job.job_type}
-                          </div>
-                          <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                            <MapPin className="mr-1 h-3 w-3" />
-                            {job.location}
-                          </div>
-                          <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                            <DollarSign className="mr-1 h-3 w-3" />
-                            {job.salary}
-                          </div>
-                          <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                            <Clock className="mr-1 h-3 w-3" />
-                            Posted on {formatDate(job.created_at)}
-                          </div>
-                        </div>
-                        
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {job.description.length > 150 
-                            ? `${job.description.substring(0, 150)}...` 
-                            : job.description}
-                        </p>
-                        
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {job.skills.slice(0, 5).map((tag) => (
-                            <span 
-                              key={tag} 
-                              className="inline-flex items-center rounded-md bg-white/5 px-2 py-1 text-xs"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {job.skills.length > 5 && (
-                            <span className="inline-flex items-center rounded-md bg-white/5 px-2 py-1 text-xs">
-                              +{job.skills.length - 5} more
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline">View Applications</Button>
-                        <Button variant={job.status === 'active' ? 'default' : 'default'}>
-                          {job.status === 'active' ? 'Close Job' : 'Reopen Job'}
-                        </Button>
-                      </div>
-                    </div>
-                  </AnimatedCard>
-                ))
-              ) : (
-                <div className="text-center py-12 glass-card">
-                  <Briefcase className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No Jobs Posted Yet</h3>
-                  <p className="text-muted-foreground mb-6">
-                    You haven't posted any jobs yet. Create a job listing to find the perfect freelancer for your project.
-                  </p>
-                  <Button>Post a Job</Button>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="applied" className="space-y-4">
-              {isLoading ? (
-                <div className="flex justify-center items-center h-40">
-                  <div className="animate-spin h-8 w-8 border-2 border-navy-accent rounded-full border-t-transparent"></div>
-                </div>
-              ) : appliedJobs.length > 0 ? (
-                appliedJobs.map((application, index) => (
-                  <AnimatedCard
-                    key={application.id}
-                    className="hover-shadow"
-                    delay={`${index * 0.05}s`}
-                  >
-                    {application.job ? (
-                      <div className="flex flex-col justify-between space-y-4">
-                        <div>
-                          <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold text-lg">{application.job.title}</h3>
-                            {getStatusBadge(application.status)}
-                          </div>
-                          <p className="text-muted-foreground">{application.job.company}</p>
-                          
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                              <Briefcase className="mr-1 h-3 w-3" />
-                              {application.job.job_type}
-                            </div>
-                            <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                              <MapPin className="mr-1 h-3 w-3" />
-                              {application.job.location}
-                            </div>
-                            <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                              <DollarSign className="mr-1 h-3 w-3" />
-                              {application.job.salary}
-                            </div>
-                            <div className="inline-flex items-center rounded-md border border-white/10 px-2.5 py-0.5 text-xs font-semibold">
-                              <File className="mr-1 h-3 w-3" />
-                              Applied on {formatDate(application.created_at)}
-                            </div>
-                          </div>
-                          
-                          <div className="mt-3 p-3 bg-black/30 rounded-md">
-                            <h4 className="text-sm font-medium mb-1">Your Cover Letter:</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {application.cover_letter.length > 150 
-                                ? `${application.cover_letter.substring(0, 150)}...` 
-                                : application.cover_letter}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-end">
-                          <Button variant="outline">View Job Details</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6">
-                        <p className="text-muted-foreground">Job information no longer available</p>
-                      </div>
-                    )}
-                  </AnimatedCard>
-                ))
-              ) : (
-                <div className="text-center py-12 glass-card">
-                  <Briefcase className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No Applications Yet</h3>
-                  <p className="text-muted-foreground mb-6">
-                    You haven't applied to any jobs yet. Browse available jobs and start applying.
-                  </p>
-                  <Button>Browse Jobs</Button>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+      <div className="container py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">My Jobs</h1>
+          <Button onClick={() => navigate('/post-job')}>Post New Job</Button>
         </div>
-      </main>
-      <FooterSection />
+        
+        <Tabs defaultValue="posted" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="posted">Jobs Posted</TabsTrigger>
+            <TabsTrigger value="applications">Applications Received</TabsTrigger>
+            <TabsTrigger value="applied">Jobs Applied</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="posted" className="space-y-6">
+            {isLoading ? (
+              <p>Loading your posted jobs...</p>
+            ) : postedJobs.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">You haven't posted any jobs yet.</p>
+                <Button onClick={() => navigate('/post-job')}>Post Your First Job</Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {postedJobs.map((job) => (
+                  <Card key={job.id} className="h-full flex flex-col">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-xl">{job.title}</CardTitle>
+                        <Badge 
+                          variant={job.status === 'open' ? 'default' : 'outline'}
+                        >
+                          {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                        </Badge>
+                      </div>
+                      <CardDescription>
+                        {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'No date'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Budget: ${job.budget}</p>
+                        <p className="text-sm line-clamp-3">{job.description}</p>
+                        
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {job.skills_required?.map((skill, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="border-t pt-4 flex justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          {applications.filter(app => app.job_id === job.id).length} applications
+                        </p>
+                      </div>
+                      {job.status === 'open' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCloseJob(job.id)}
+                        >
+                          Close Job
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReOpenJob(job.id)}
+                        >
+                          Reopen Job
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="applications" className="space-y-6">
+            {isLoading ? (
+              <p>Loading applications...</p>
+            ) : applications.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">You haven't received any applications yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {applications.map((application) => {
+                  const matchingJob = postedJobs.find(job => job.id === application.job_id);
+                  return (
+                    <Card key={application.id}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-lg">
+                              Application for: {matchingJob?.title || 'Unknown Job'}
+                            </CardTitle>
+                            <CardDescription>
+                              From: {application.user_info?.full_name || 'Unknown User'}
+                            </CardDescription>
+                          </div>
+                          <Badge>
+                            {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm mb-4">{application.cover_letter}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Applied on: {new Date(application.created_at).toLocaleDateString()}
+                        </p>
+                      </CardContent>
+                      <CardFooter className="flex justify-end space-x-2">
+                        {application.status === 'pending' && (
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleApplicationAction(application.id, 'rejected')}
+                            >
+                              Reject
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleApplicationAction(application.id, 'accepted')}
+                            >
+                              Accept
+                            </Button>
+                          </>
+                        )}
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="applied" className="space-y-6">
+            {isLoading ? (
+              <p>Loading your applications...</p>
+            ) : appliedJobs.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">You haven't applied to any jobs yet.</p>
+                <Button onClick={() => navigate('/jobs')}>Browse Available Jobs</Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {appliedJobs.map((application) => {
+                  const job = application.job as Job;
+                  return (
+                    <Card key={application.id} className="h-full flex flex-col">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-xl">{job?.title || 'Unknown Job'}</CardTitle>
+                          <Badge 
+                            variant={application.status === 'accepted' ? 'default' : (
+                              application.status === 'rejected' ? 'outline' : 'secondary'
+                            )}
+                          >
+                            {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                          </Badge>
+                        </div>
+                        <CardDescription>
+                          {job?.recruiter_info?.company_name || 'Unknown Company'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Budget: ${job?.budget || 0}</p>
+                          <p className="text-sm line-clamp-3">{job?.description || 'No description'}</p>
+                          
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {job?.skills_required?.map((skill, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="border-t pt-4">
+                        <p className="text-xs text-muted-foreground">
+                          Applied on: {new Date(application.created_at).toLocaleDateString()}
+                        </p>
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };

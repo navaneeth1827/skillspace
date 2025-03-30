@@ -1,13 +1,12 @@
 
 import React from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 
 import Jobs from "@/pages/Jobs";
 import PostJob from "@/pages/PostJob";
 import Profile from "@/pages/Profile";
 import MyJobs from "@/pages/MyJobs";
 import Messages from "@/pages/Messages";
-import { Navigate } from 'react-router-dom';
 
 const router = createBrowserRouter([
   {
