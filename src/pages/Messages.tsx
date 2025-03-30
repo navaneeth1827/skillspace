@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -46,23 +45,21 @@ const Messages = () => {
           return;
         }
         if (data) {
-          const formattedProfiles = data.map((profile) => {
-            return {
-              id: profile.id,
-              full_name: profile.full_name || "",
-              title: profile.title || "",
-              location: profile.location || "",
-              bio: profile.bio || "",
-              hourly_rate: profile.hourly_rate || 0,
-              skills: parseSkills(profile.skills),
-              avatar_url: profile.avatar_url,
-              user_type: profile.user_type || "freelancer",
-              company_name: profile.company_name,
-              website: profile.website,
-              created_at: profile.created_at,
-              updated_at: profile.updated_at
-            };
-          });
+          const formattedProfiles = data.map((profile) => ({
+            id: profile.id,
+            full_name: profile.full_name || "",
+            title: profile.title || "",
+            location: profile.location || "",
+            bio: profile.bio || "",
+            hourly_rate: profile.hourly_rate || 0,
+            skills: parseSkills(profile.skills),
+            avatar_url: profile.avatar_url,
+            user_type: profile.user_type || "freelancer",
+            company_name: profile.company_name,
+            website: profile.website,
+            created_at: profile.created_at,
+            updated_at: profile.updated_at
+          }));
           
           const combinedProfiles = [...formattedProfiles];
           if (currentChatUser && !combinedProfiles.some(p => p.id === currentChatUser.id)) {
