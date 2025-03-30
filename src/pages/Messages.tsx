@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChatMessage } from "@/components/ChatMessage";
+import ChatMessage from "@/components/ChatMessage";
 import { useChat } from "@/hooks/useChat";
 import { useProfileData } from "@/hooks/useProfileData";
 import Navbar from "@/components/Navbar";
@@ -14,7 +14,7 @@ import { ProfileData } from "@/types/profile";
 
 const Messages = () => {
   const { user } = useAuth();
-  const { profile } = useProfileData(user?.id);
+  const profileData = useProfileData(user?.id);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [contacts, setContacts] = useState<ProfileData[]>([]);
@@ -27,14 +27,14 @@ const Messages = () => {
       try {
         // Get users who have exchanged messages with the current user
         const { data: sentMessages, error: sentError } = await supabase
-          .from('messages')
-          .select('recipient_id')
+          .from('chat_messages')
+          .select('receiver_id')
           .eq('sender_id', user.id);
           
         const { data: receivedMessages, error: receivedError } = await supabase
-          .from('messages')
+          .from('chat_messages')
           .select('sender_id')
-          .eq('recipient_id', user.id);
+          .eq('receiver_id', user.id);
         
         if (sentError || receivedError) {
           console.error("Error fetching messages:", sentError || receivedError);
@@ -42,7 +42,7 @@ const Messages = () => {
         }
         
         // Extract unique user IDs
-        const sentUserIds = sentMessages?.map(msg => msg.recipient_id) || [];
+        const sentUserIds = sentMessages?.map(msg => msg.receiver_id) || [];
         const receivedUserIds = receivedMessages?.map(msg => msg.sender_id) || [];
         const uniqueUserIds = [...new Set([...sentUserIds, ...receivedUserIds])];
         
@@ -76,15 +76,7 @@ const Messages = () => {
   const handleSendMessage = async () => {
     if (!message.trim() || !selectedUser || !user) return;
     
-    await sendMessage({
-      content: message,
-      sender_id: user.id,
-      recipient_id: selectedUser,
-      // Use appropriate values from profile, with fallbacks for optional properties
-      sender_name: profile?.full_name || '',
-      sender_avatar: profile?.avatar_url || '',
-      sender_title: profile?.title || '',
-    });
+    const result = await sendMessage(message);
     
     setMessage("");
   };
@@ -181,8 +173,10 @@ const Messages = () => {
                       messages.map((msg) => (
                         <ChatMessage
                           key={msg.id}
-                          message={msg}
-                          isOutgoing={msg.sender_id === user.id}
+                          content={msg.content}
+                          senderData={msg.sender_id === user.id ? null : getUserInfo(msg.sender_id)}
+                          timestamp={msg.created_at}
+                          isCurrentUser={msg.sender_id === user.id}
                         />
                       ))
                     )}

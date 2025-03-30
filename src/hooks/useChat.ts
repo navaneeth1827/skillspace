@@ -12,7 +12,7 @@ export type Message = {
   read: boolean;
 };
 
-export const useChat = (receiverId?: string) => {
+export const useChat = (receiverId?: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

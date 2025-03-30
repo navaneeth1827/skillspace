@@ -10,18 +10,25 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
-// Job type definition
+// Job interface with all required properties
 interface Job {
   id: string;
   title: string;
   description: string;
-  budget: number;
+  budget: number; 
+  budget_min?: number;
+  budget_max?: number;
   location: string;
   recruiter_id: string;
   created_at: string;
   status: 'open' | 'closed' | 'pending' | 'active';
   skills_required: string[];
   deadline: string | null;
+  skills?: string[];
+  company?: string;
+  category?: string;
+  job_type?: string;
+  salary?: string;
   recruiter_info?: {
     full_name: string;
     avatar_url: string;
@@ -29,7 +36,7 @@ interface Job {
   };
 }
 
-// Application type definition
+// JobApplication interface
 interface JobApplication {
   id: string;
   job_id: string;
@@ -77,8 +84,30 @@ const MyJobs = () => {
         
         if (jobsError) throw jobsError;
         
+        // Transform data to match Job interface
+        const transformedJobs: Job[] = (jobsData || []).map(job => ({
+          id: job.id,
+          title: job.title,
+          description: job.description,
+          budget: job.budget_max || job.budget_min || 0,
+          budget_min: job.budget_min,
+          budget_max: job.budget_max,
+          location: job.location,
+          recruiter_id: job.recruiter_id,
+          created_at: job.created_at,
+          status: job.status as 'open' | 'closed' | 'pending' | 'active',
+          skills_required: job.skills || [],
+          deadline: null,
+          skills: job.skills,
+          company: job.company,
+          category: job.category,
+          job_type: job.job_type,
+          salary: job.salary,
+          recruiter_info: job.recruiter_info
+        }));
+        
         // Fetch applications for the user's jobs
-        const jobIds = jobsData?.map(job => job.id) || [];
+        const jobIds = transformedJobs?.map(job => job.id) || [];
         
         let applicationsData: JobApplication[] = [];
         
@@ -96,7 +125,16 @@ const MyJobs = () => {
             .in('job_id', jobIds);
           
           if (appError) throw appError;
-          applicationsData = appData || [];
+          
+          // Handle potential missing fields in user_info
+          applicationsData = (appData || []).map(app => ({
+            ...app,
+            user_info: app.user_info || {
+              full_name: 'Unknown User',
+              avatar_url: '',
+              title: ''
+            }
+          }));
         }
         
         // Fetch jobs the user has applied to
@@ -118,9 +156,31 @@ const MyJobs = () => {
         
         if (appliedError) throw appliedError;
         
-        setPostedJobs(jobsData || []);
+        // Transform applied jobs to match JobApplication interface
+        const transformedAppliedJobs: JobApplication[] = (appliedData || []).map(app => {
+          const jobData = app.job as any;
+          return {
+            ...app,
+            job: jobData ? {
+              id: jobData.id,
+              title: jobData.title,
+              description: jobData.description,
+              budget: jobData.budget_max || jobData.budget_min || 0,
+              location: jobData.location,
+              recruiter_id: jobData.recruiter_id,
+              created_at: jobData.created_at,
+              status: jobData.status as 'open' | 'closed' | 'pending' | 'active',
+              skills_required: jobData.skills || [],
+              deadline: null,
+              skills: jobData.skills,
+              recruiter_info: jobData.recruiter_info
+            } : undefined
+          };
+        });
+        
+        setPostedJobs(transformedJobs);
         setApplications(applicationsData);
-        setAppliedJobs(appliedData || []);
+        setAppliedJobs(transformedAppliedJobs);
       } catch (error) {
         console.error('Error fetching jobs:', error);
         toast({
