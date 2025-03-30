@@ -37,22 +37,22 @@ const Jobs = () => {
         }
 
         if (data) {
-          // Transform database records to match Job interface
           const transformedJobs: Job[] = data.map(item => ({
             id: item.id,
             title: item.title,
             company: item.company || 'Unknown Company',
             location: item.location || 'Remote',
             job_type: item.job_type || 'Full-time',
-            category: item.category || 'Other',
             salary: item.budget_min && item.budget_max ? 
               `$${item.budget_min} - $${item.budget_max}` : 
-              item.salary || 'Competitive',
-            description: item.description,
+              (item.salary || 'Competitive'),
+            category: item.category || 'Development',
+            description: item.description || '',
             skills: Array.isArray(item.skills) ? item.skills : 
-              (item.skills ? JSON.parse(JSON.stringify(item.skills)) : []),
+              (item.skills ? (typeof item.skills === 'string' ? 
+                item.skills.split(',').map(s => s.trim()).filter(Boolean) : []) : []),
             recruiter_id: item.recruiter_id,
-            status: item.status,
+            status: item.status || 'active',
             budget_min: item.budget_min,
             budget_max: item.budget_max,
             created_at: item.created_at,
@@ -61,7 +61,6 @@ const Jobs = () => {
           
           setJobs(transformedJobs);
           
-          // Extract all unique tags from jobs
           const tagsSet = new Set<string>();
           transformedJobs.forEach(job => {
             job.skills?.forEach(skill => {
@@ -79,7 +78,6 @@ const Jobs = () => {
 
     fetchJobs();
 
-    // Set up real-time subscription for jobs
     const channel = supabase
       .channel('public:jobs')
       .on('postgres_changes', 
@@ -90,7 +88,6 @@ const Jobs = () => {
         }, 
         (payload) => {
           console.log('Change received!', payload);
-          // Refetch jobs when changes occur
           fetchJobs();
         }
       )
@@ -101,26 +98,21 @@ const Jobs = () => {
     };
   }, []);
 
-  // Filter jobs
   const filteredJobs = jobs.filter(job => {
-    // Search filter
     const matchesSearch = 
       searchTerm === "" || 
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.company.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Type filter
     const matchesType = 
       selectedType === "" || 
       job.job_type === selectedType;
     
-    // Category filter
     const matchesCategory = 
       selectedCategory === "" || 
       job.category === selectedCategory;
     
-    // Tags filter
     const matchesTags = 
       selectedTags.length === 0 || 
       selectedTags.some(tag => job.skills.includes(tag));
@@ -136,7 +128,6 @@ const Jobs = () => {
     );
   };
 
-  // Function to format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();

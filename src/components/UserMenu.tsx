@@ -37,13 +37,15 @@ const UserMenu = () => {
         }
         
         if (data) {
-          const skillsArray = Array.isArray(data.skills) 
-            ? data.skills 
-            : data.skills 
-              ? typeof data.skills === 'string' 
-                ? data.skills.split(',').map(s => s.trim()).filter(Boolean)
-                : []
-              : [];
+          // Handle skills properly
+          let skillsArray: string[] = [];
+          if (Array.isArray(data.skills)) {
+            skillsArray = data.skills;
+          } else if (data.skills) {
+            if (typeof data.skills === 'string') {
+              skillsArray = data.skills.split(',').map(s => s.trim()).filter(Boolean);
+            }
+          }
               
           const profileDataConverted: ProfileData = {
             id: data.id,

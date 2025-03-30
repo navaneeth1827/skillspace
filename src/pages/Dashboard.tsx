@@ -131,14 +131,15 @@ const Dashboard = () => {
         }
         
         if (data) {
-          const skillsArray = Array.isArray(data.skills) 
-            ? data.skills 
-            : data.skills 
-              ? typeof data.skills === 'string' 
-                ? data.skills.split(',').map(s => s.trim()).filter(Boolean)
-                : []
-              : [];
-              
+          let skillsArray: string[] = [];
+          if (Array.isArray(data.skills)) {
+            skillsArray = data.skills;
+          } else if (data.skills) {
+            if (typeof data.skills === 'string') {
+              skillsArray = data.skills.split(',').map(s => s.trim()).filter(Boolean);
+            }
+          }
+          
           const profileDataFormatted: ProfileData = {
             full_name: data.full_name || "",
             title: data.title || "",

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -5,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ProfileData } from "@/types/profile";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/Button";
+import { Button } from "@/components/ui/button"; // Fixed import from ui/button
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -52,13 +53,15 @@ const Messages = () => {
         if (data) {
           // Transform the profiles data to match ProfileData interface
           const formattedProfiles: ProfileData[] = data.map(profile => {
-            const skillsArray = Array.isArray(profile.skills) 
-              ? profile.skills 
-              : profile.skills 
-                ? typeof profile.skills === 'string' 
-                  ? profile.skills.split(',').map(s => s.trim()).filter(Boolean)
-                  : []
-                : [];
+            // Safe handling of skills to ensure it's always a string array
+            let skillsArray: string[] = [];
+            if (Array.isArray(profile.skills)) {
+              skillsArray = profile.skills;
+            } else if (profile.skills) {
+              if (typeof profile.skills === 'string') {
+                skillsArray = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
+              }
+            }
                 
             return {
               id: profile.id,
@@ -77,13 +80,7 @@ const Messages = () => {
             };
           });
           
-          // Combine with any profiles we already have
-          const combinedProfiles = [...formattedProfiles];
-          if (currentChatUser && !combinedProfiles.some(p => p.id === currentChatUser.id)) {
-            combinedProfiles.push(currentChatUser);
-          }
-          
-          setUserProfiles(combinedProfiles);
+          setUserProfiles(formattedProfiles);
         }
       } catch (error) {
         console.error('Error:', error);
