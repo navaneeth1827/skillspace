@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -15,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProfileData } from "@/types/profile";
 import UserAvatar from "@/components/UserAvatar";
 import UserPerformanceCharts from "@/components/UserPerformanceCharts";
+import { parseSkills } from "@/types/profile";
 
 const recommendedJobs = [
   {
@@ -132,23 +132,13 @@ const Dashboard = () => {
         }
         
         if (data) {
-          // Handle skills properly with better type checking
-          let skillsArray: string[] = [];
-          if (Array.isArray(data.skills)) {
-            skillsArray = data.skills;
-          } else if (data.skills) {
-            if (typeof data.skills === 'string') {
-              skillsArray = data.skills.split(',').map(s => s.trim()).filter(Boolean);
-            }
-          }
-          
-          const profileDataFormatted: ProfileData = {
+          const profileDataFormatted = {
             full_name: data.full_name || "",
             title: data.title || "",
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
-            skills: skillsArray,
+            skills: parseSkills(data.skills),
             avatar_url: data.avatar_url,
             user_type: data.user_type || "freelancer",
             company_name: data.company_name,

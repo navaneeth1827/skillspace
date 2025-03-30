@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Job } from "@/types/profile";
+import { parseSkills } from "@/types/profile";
 
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -37,16 +38,7 @@ const Jobs = () => {
         }
 
         if (data) {
-          const transformedJobs: Job[] = data.map(item => {
-            let skillsArray: string[] = [];
-            if (Array.isArray(item.skills)) {
-              skillsArray = item.skills;
-            } else if (item.skills) {
-              if (typeof item.skills === 'string') {
-                skillsArray = item.skills.split(',').map(s => s.trim()).filter(Boolean);
-              }
-            }
-            
+          const transformedJobs = data.map(item => {
             return {
               id: item.id,
               title: item.title,
@@ -58,7 +50,7 @@ const Jobs = () => {
                 (item.salary || 'Competitive'),
               category: item.category || 'Development',
               description: item.description || '',
-              skills: skillsArray,
+              skills: parseSkills(item.skills),
               recruiter_id: item.recruiter_id,
               status: item.status || 'active',
               budget_min: item.budget_min,

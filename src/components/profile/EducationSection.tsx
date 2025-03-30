@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 interface EducationSectionProps {
   items: EducationItem[];
   isEditing: boolean;
-  onAdd: (item: EducationItem) => Promise<any>;
+  onAdd: (item: Partial<EducationItem>) => Promise<any>;
   onUpdate: (id: string, updates: Partial<EducationItem>) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
 }
@@ -27,7 +27,7 @@ export default function EducationSection({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<EducationItem | null>(null);
-  const [formData, setFormData] = useState<EducationItem>({
+  const [formData, setFormData] = useState<Partial<EducationItem>>({
     degree: "",
     school: "",
     year_range: ""

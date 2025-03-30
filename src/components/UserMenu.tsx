@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -13,7 +12,7 @@ import { LogOut, Settings, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import UserAvatar from "./UserAvatar";
 import { supabase } from "@/integrations/supabase/client";
-import { ProfileData } from "@/types/profile";
+import { ProfileData, parseSkills } from "@/types/profile";
 
 const UserMenu = () => {
   const { user, signOut } = useAuth();
@@ -37,16 +36,6 @@ const UserMenu = () => {
         }
         
         if (data) {
-          // Handle skills properly with better type checking
-          let skillsArray: string[] = [];
-          if (Array.isArray(data.skills)) {
-            skillsArray = data.skills;
-          } else if (data.skills) {
-            if (typeof data.skills === 'string') {
-              skillsArray = data.skills.split(',').map(s => s.trim()).filter(Boolean);
-            }
-          }
-              
           const profileDataConverted: ProfileData = {
             id: data.id,
             full_name: data.full_name || "",
@@ -54,7 +43,7 @@ const UserMenu = () => {
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
-            skills: skillsArray,
+            skills: parseSkills(data.skills),
             avatar_url: data.avatar_url,
             user_type: data.user_type || "freelancer",
             company_name: data.company_name,

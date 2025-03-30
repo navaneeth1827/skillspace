@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 interface ExperienceSectionProps {
   items: ExperienceItem[];
   isEditing: boolean;
-  onAdd: (item: ExperienceItem) => Promise<any>;
+  onAdd: (item: Partial<ExperienceItem>) => Promise<any>;
   onUpdate: (id: string, updates: Partial<ExperienceItem>) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
 }
@@ -28,7 +28,7 @@ export default function ExperienceSection({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<ExperienceItem | null>(null);
-  const [formData, setFormData] = useState<ExperienceItem>({
+  const [formData, setFormData] = useState<Partial<ExperienceItem>>({
     title: "",
     company: "",
     location: "",

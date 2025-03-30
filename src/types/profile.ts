@@ -79,3 +79,13 @@ export interface ReviewItem {
   client_name?: string;
   client_avatar?: string;
 }
+
+// Helper function to safely parse skills from various formats
+export function parseSkills(skills: any): string[] {
+  if (Array.isArray(skills)) {
+    return skills;
+  } else if (typeof skills === 'string') {
+    return skills.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}

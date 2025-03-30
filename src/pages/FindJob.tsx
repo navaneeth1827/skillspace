@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -11,6 +10,7 @@ import Button from "@/components/Button";
 import { Briefcase, DollarSign, MapPin, Search, Star } from "lucide-react";
 import AnimatedCard from "@/components/AnimatedCard";
 import UserAvatar from "@/components/UserAvatar";
+import { parseSkills } from "@/types/profile";
 
 const FindJob = () => {
   const { user } = useAuth();
@@ -41,23 +41,13 @@ const FindJob = () => {
         }
         
         if (data) {
-          // Handle skills properly with better type checking
-          let skillsArray: string[] = [];
-          if (Array.isArray(data.skills)) {
-            skillsArray = data.skills;
-          } else if (data.skills) {
-            if (typeof data.skills === 'string') {
-              skillsArray = data.skills.split(',').map(s => s.trim()).filter(Boolean);
-            }
-          }
-          
-          const profileDataFormatted: ProfileData = {
+          const profileDataFormatted = {
             full_name: data.full_name || "",
             title: data.title || "",
             location: data.location || "",
             bio: data.bio || "",
             hourly_rate: data.hourly_rate || 0,
-            skills: skillsArray,
+            skills: parseSkills(data.skills),
             avatar_url: data.avatar_url,
             user_type: data.user_type || "freelancer",
             company_name: data.company_name,

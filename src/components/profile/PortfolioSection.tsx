@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 interface PortfolioSectionProps {
   items: PortfolioItem[];
   isEditing: boolean;
-  onAdd: (item: PortfolioItem) => Promise<any>;
+  onAdd: (item: Partial<PortfolioItem>) => Promise<any>;
   onUpdate: (id: string, updates: Partial<PortfolioItem>) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
 }
@@ -29,7 +29,7 @@ export default function PortfolioSection({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<PortfolioItem | null>(null);
-  const [formData, setFormData] = useState<PortfolioItem>({
+  const [formData, setFormData] = useState<Partial<PortfolioItem>>({
     title: "",
     description: "",
     image_url: "/placeholder.svg", // Default image

@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { ArrowUpRight, Briefcase, DollarSign, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AnimatedCard from "./AnimatedCard";
-import { Job } from "@/types/profile";
+import { Job, parseSkills } from "@/types/profile";
 
 const FeaturedJobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -28,16 +27,6 @@ const FeaturedJobs = () => {
 
         if (data) {
           const transformedJobs: Job[] = data.map(item => {
-            // Safely process skills
-            let skillsArray: string[] = [];
-            if (Array.isArray(item.skills)) {
-              skillsArray = item.skills;
-            } else if (item.skills) {
-              if (typeof item.skills === 'string') {
-                skillsArray = item.skills.split(',').map(s => s.trim()).filter(Boolean);
-              }
-            }
-            
             return {
               id: item.id,
               title: item.title,
@@ -49,7 +38,7 @@ const FeaturedJobs = () => {
                 (item.salary || 'Competitive'),
               category: item.category || 'Development',
               description: item.description || '',
-              skills: skillsArray,
+              skills: parseSkills(item.skills),
               recruiter_id: item.recruiter_id,
               status: item.status || 'active',
               budget_min: item.budget_min,

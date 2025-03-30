@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -11,7 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
-// Remove the static import of uuid and use dynamic import in the function
+import { parseSkills } from "@/types/profile";
+import { v4 as uuidv4 } from "uuid";
 
 const Messages = () => {
   const { user } = useAuth();
@@ -32,37 +32,21 @@ const Messages = () => {
   useEffect(() => {
     const fetchProfiles = async () => {
       if (!user) return;
-      
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .neq('id', user.id)
-          .order('full_name', { ascending: true });
-        
+        const { data, error } = await supabase.from('profiles').select('*').neq('id', user.id).order('full_name', {
+          ascending: true
+        });
         if (error) {
           console.error('Error fetching profiles:', error);
           toast({
             title: "Error",
             description: "Failed to load user profiles",
-            variant: "destructive",
+            variant: "destructive"
           });
           return;
         }
-        
         if (data) {
-          // Transform the profiles data to match ProfileData interface
-          const formattedProfiles: ProfileData[] = data.map(profile => {
-            // Safe handling of skills to ensure it's always a string array
-            let skillsArray: string[] = [];
-            if (Array.isArray(profile.skills)) {
-              skillsArray = profile.skills;
-            } else if (profile.skills) {
-              if (typeof profile.skills === 'string') {
-                skillsArray = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
-              }
-            }
-                
+          const formattedProfiles = data.map((profile) => {
             return {
               id: profile.id,
               full_name: profile.full_name || "",
@@ -70,7 +54,7 @@ const Messages = () => {
               location: profile.location || "",
               bio: profile.bio || "",
               hourly_rate: profile.hourly_rate || 0,
-              skills: skillsArray,
+              skills: parseSkills(profile.skills),
               avatar_url: profile.avatar_url,
               user_type: profile.user_type || "freelancer",
               company_name: profile.company_name,
@@ -80,7 +64,6 @@ const Messages = () => {
             };
           });
           
-          // Combine with any profiles we already have
           const combinedProfiles = [...formattedProfiles];
           if (currentChatUser && !combinedProfiles.some(p => p.id === currentChatUser.id)) {
             combinedProfiles.push(currentChatUser);
@@ -117,7 +100,6 @@ const Messages = () => {
         if (data) {
           setMessages(data);
           
-          // Mark messages as read
           const unreadMessages = data.filter(msg => msg.receiver_id === user.id && !msg.read);
           if (unreadMessages.length > 0) {
             const messageIds = unreadMessages.map(msg => msg.id);
@@ -144,7 +126,6 @@ const Messages = () => {
       fetchMessages();
     }
     
-    // Set up real-time subscription for new messages
     const channel = supabase
       .channel('public:chat_messages')
       .on('postgres_changes', {
@@ -168,7 +149,6 @@ const Messages = () => {
     if (!user || !currentChatUser || !newMessage.trim()) return;
     
     try {
-      const { v4: uuidv4 } = await import('uuid');
       const messageId = uuidv4();
       
       const { error } = await supabase
