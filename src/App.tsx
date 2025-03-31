@@ -13,6 +13,8 @@ import Dashboard from "@/pages/Dashboard";
 import Community from "@/pages/Community";
 import Calendar from "@/pages/Calendar";
 import FindJob from "@/pages/FindJob";
+import SignIn from "@/pages/SignIn";
+import SignUp from "@/pages/SignUp";
 
 const router = createBrowserRouter([
   {
@@ -58,6 +60,14 @@ const router = createBrowserRouter([
   {
     path: "/calendar",
     element: <Calendar />,
+  },
+  {
+    path: "/sign-in",
+    element: <SignIn />,
+  },
+  {
+    path: "/sign-up",
+    element: <SignUp />,
   },
 ]);
 

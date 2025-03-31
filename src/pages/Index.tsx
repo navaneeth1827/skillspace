@@ -15,17 +15,13 @@ const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Redirect to dashboard if user is logged in
-    if (user) {
-      navigate("/dashboard");
-    }
-  }, [user, navigate]);
+  // Do not redirect logged in users automatically
+  // This allows anyone to see the landing page
 
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <main className="flex-1">
+      <main className="flex-1 pt-16">
         <HeroSection />
         <AboutSection />
         <FeaturedJobs />
