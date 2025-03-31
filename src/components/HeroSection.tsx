@@ -1,74 +1,78 @@
 
 import { ArrowRight } from "lucide-react";
 import Button from "./Button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AuthModal from "./AuthModal";
 
 const HeroSection = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  
+  useEffect(() => {
+    // Trigger animation after component mounts
+    setIsVisible(true);
+  }, []);
 
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 border-b border-white/5">
-      <div className="container px-4 md:px-6">
-        <div className="grid gap-10 lg:grid-cols-2 lg:gap-16 items-center">
-          <div className="space-y-6 animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            <div className="inline-block rounded-lg bg-white/5 px-3 py-1 text-sm backdrop-blur-md border border-white/10">
+    <section className="w-full py-20 md:py-32 lg:py-40 border-b border-white/5 flex items-center justify-center">
+      <div className="container px-4 md:px-6 max-w-5xl text-center">
+        <div className="space-y-12">
+          <div 
+            className={`space-y-4 transition-all duration-1000 transform ${
+              isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+            }`}
+          >
+            <div className="inline-block rounded-lg bg-white/5 px-3 py-1 text-sm backdrop-blur-md border border-white/10 mb-4">
               Welcome to Freelancer Hub Nexus
             </div>
-            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-              <span className="text-gradient">Connect, Create, </span> 
-              <span className="accent-gradient">Collaborate</span>
+            
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-tight">
+              <div className="overflow-hidden py-1">
+                <span className="text-gradient inline-block transform transition-transform duration-700 hover:scale-105">
+                  Connect, 
+                </span>
+              </div>
+              <div className="overflow-hidden py-1">
+                <span className="accent-gradient inline-block transform transition-transform duration-700 hover:scale-105 delay-100">
+                  Create, 
+                </span>
+              </div>
+              <div className="overflow-hidden py-1">
+                <span className="bg-cyber-gradient bg-clip-text text-transparent inline-block transform transition-transform duration-700 hover:scale-105 delay-200">
+                  Collaborate
+                </span>
+              </div>
             </h1>
-            <p className="text-muted-foreground md:text-xl">
+            
+            <p className="text-muted-foreground text-xl md:text-2xl max-w-3xl mx-auto mt-6 transition-all duration-700 delay-300 transform hover:translate-y-1">
               The premium marketplace where exceptional freelancers and forward-thinking clients find each other. No noise, just quality connections.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10 transition-all duration-700 delay-400">
               <Button 
                 size="lg" 
-                className="group" 
+                className="group text-lg py-6 px-8" 
                 onClick={() => setIsAuthModalOpen(true)}
               >
                 Get Started
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => window.location.href = '/jobs'}>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="text-lg py-6 px-8"
+                onClick={() => window.location.href = '/jobs'}
+              >
                 Browse Jobs
               </Button>
             </div>
           </div>
-          <div className="relative animate-fade-up" style={{ animationDelay: "0.3s" }}>
-            <div className="glass-card overflow-hidden rounded-lg">
-              <div className="aspect-video overflow-hidden rounded-lg">
-                <div className="bg-gradient-to-br from-secondary to-background/50 p-6 md:p-10 h-full flex flex-col justify-center">
-                  <div className="space-y-2 animate-pulse-soft">
-                    <div className="h-2.5 bg-white/10 rounded-full w-3/4"></div>
-                    <div className="h-2.5 bg-white/10 rounded-full w-1/2"></div>
-                    <div className="h-2.5 bg-white/10 rounded-full w-5/6"></div>
-                  </div>
-                  <div className="mt-8 space-y-3">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-white/10"></div>
-                      <div className="space-y-2 flex-1">
-                        <div className="h-2.5 bg-white/10 rounded-full w-1/3"></div>
-                        <div className="h-2.5 bg-white/10 rounded-full w-1/4"></div>
-                      </div>
-                      <div className="h-8 w-20 rounded-md bg-primary/20"></div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-white/10"></div>
-                      <div className="space-y-2 flex-1">
-                        <div className="h-2.5 bg-white/10 rounded-full w-1/3"></div>
-                        <div className="h-2.5 bg-white/10 rounded-full w-1/4"></div>
-                      </div>
-                      <div className="h-8 w-20 rounded-md bg-primary/20"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+
+          <div className="relative overflow-hidden h-8 w-full max-w-md mx-auto rounded-full bg-white/5 mt-20 hidden md:block">
+            <div className="absolute top-0 left-0 h-full w-1/3 bg-gradient-to-r from-primary to-purple-400 animate-pulse-soft rounded-full"></div>
+            <div className="absolute inset-0 flex items-center justify-center text-sm font-medium text-white/80">
+              Join over 10,000+ freelancers and businesses
             </div>
-            
-            <div className="absolute -bottom-6 -right-6 h-24 w-24 rotate-12 rounded-lg bg-primary/20 blur-3xl"></div>
-            <div className="absolute -top-6 -left-6 h-24 w-24 -rotate-12 rounded-lg bg-primary/20 blur-3xl"></div>
           </div>
         </div>
       </div>
