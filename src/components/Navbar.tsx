@@ -44,32 +44,32 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-4xl bg-background/20 backdrop-blur-lg rounded-full border border-white/10 shadow-lg mb-16">
+    <nav className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[95%] max-w-5xl bg-background/20 backdrop-blur-lg rounded-full border border-white/10 shadow-lg ${isLandingPage ? 'mb-8' : 'mb-20'}`}>
       <div className="container mx-auto flex items-center justify-between px-6 py-3">
         <Link to="/" className="font-bold text-xl text-gradient">
           SkillSpace
         </Link>
 
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="hidden md:flex items-center space-x-3">
           {!isLandingPage && user ? (
             <>
-              <Link to="/dashboard" className="px-2 text-sm hover:text-primary transition-colors">
+              <Link to="/dashboard" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
                 <Home className="inline h-4 w-4 mr-1" />
                 Dashboard
               </Link>
-              <Link to="/jobs" className="px-2 text-sm hover:text-primary transition-colors">
+              <Link to="/jobs" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
                 <Briefcase className="inline h-4 w-4 mr-1" />
                 Find Jobs
               </Link>
-              <Link to="/community" className="px-2 text-sm hover:text-primary transition-colors">
+              <Link to="/community" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
                 <Users className="inline h-4 w-4 mr-1" />
                 Community
               </Link>
-              <Link to="/calendar" className="px-2 text-sm hover:text-primary transition-colors">
+              <Link to="/calendar" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
                 <Calendar className="inline h-4 w-4 mr-1" />
                 Calendar
               </Link>
-              <Link to="/tasks" className="px-2 text-sm hover:text-primary transition-colors">
+              <Link to="/tasks" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
                 <CheckSquare className="inline h-4 w-4 mr-1" />
                 Tasks
               </Link>
@@ -78,11 +78,11 @@ const Navbar = () => {
           
           {user ? (
             <>
-              <Link to="/messages" className="px-2 text-sm hover:text-primary transition-colors">
+              <Link to="/messages" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
                 <MessageSquare className="inline h-4 w-4 mr-1" />
                 Messages
               </Link>
-              <Link to="/post-job" className="px-2 text-sm hover:text-primary transition-colors">
+              <Link to="/post-job" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
                 <PlusCircle className="inline h-4 w-4 mr-1" />
                 Post Job
               </Link>
@@ -117,11 +117,11 @@ const Navbar = () => {
             </>
           ) : (
             <>
-              <Link to="/sign-in" className="px-2 text-sm hover:text-primary transition-colors">
+              <Link to="/sign-in" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
                 <LogIn className="inline h-4 w-4 mr-1" />
                 Sign In
               </Link>
-              <Link to="/sign-up" className="neon-button px-4 py-2 text-sm flex items-center ml-2">
+              <Link to="/sign-up" className="neon-button px-4 py-2 text-xs flex items-center ml-2">
                 <UserPlus className="h-4 w-4 mr-1" />
                 Sign Up
               </Link>

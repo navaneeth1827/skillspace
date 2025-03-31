@@ -14,8 +14,15 @@ const HeroSection = () => {
   }, []);
 
   return (
-    <section className="w-full py-20 md:py-32 lg:py-40 border-b border-white/5 flex items-center justify-center">
-      <div className="container px-4 md:px-6 max-w-5xl text-center">
+    <section className="w-full py-20 md:py-32 lg:py-40 border-b border-white/5 flex items-center justify-center relative">
+      {/* Gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-[#0e1217] to-black opacity-70 z-0"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent opacity-70 z-0"></div>
+      
+      {/* Grid overlay */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjAyMDIwIiBzdHJva2Utd2lkdGg9IjEiPjxwYXRoIGQ9Ik0tMSA2MXYtNjJoNjJ2NjJ6Ii8+PC9nPjwvc3ZnPg==')] opacity-20 z-0"></div>
+      
+      <div className="container px-4 md:px-6 max-w-5xl text-center relative z-10">
         <div className="space-y-12">
           <div 
             className={`space-y-4 transition-all duration-1000 transform ${

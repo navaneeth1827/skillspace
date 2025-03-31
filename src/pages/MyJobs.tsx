@@ -23,15 +23,23 @@ const MyJobs = () => {
   const [selectedJobApplications, setSelectedJobApplications] = useState<JobApplication[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isApplicationsDialogOpen, setIsApplicationsDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("posted-jobs");
+  const [activeTab, setActiveTab] = useState<string>("posted-jobs");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
 
+    // Set default active tab based on user type
+    if (user.user_metadata?.user_type === 'recruiter') {
+      setActiveTab("posted-jobs");
+    } else {
+      setActiveTab("my-applications");
+    }
+
     const fetchUserJobs = async () => {
       setIsLoading(true);
       try {
+        // Fetch posted jobs and applications for recruiters
         if (user.user_metadata?.user_type === 'recruiter') {
           const { data: jobsData, error: jobsError } = await supabase
             .from('jobs')
@@ -82,6 +90,7 @@ const MyJobs = () => {
 
           setPostedJobs(processedJobs as Job[]);
         } else {
+          // Fetch job applications for freelancers
           const { data: appliedJobsData, error: appliedJobsError } = await supabase
             .from('job_applications')
             .select(`
@@ -218,7 +227,7 @@ const MyJobs = () => {
     return (
       <div>
         <Navbar />
-        <div className="container py-8 pt-36">
+        <div className="container py-8 pt-44"> {/* Increased padding-top */}
           <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
           <p>Please sign in to view your jobs.</p>
         </div>
@@ -229,10 +238,10 @@ const MyJobs = () => {
   return (
     <div>
       <Navbar />
-      <div className="container py-8 pt-36"> {/* Increased padding-top */}
+      <div className="container py-8 pt-44"> {/* Increased padding-top */}
         <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
 
-        <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             {user.user_metadata?.user_type === 'recruiter' && (
               <TabsTrigger value="posted-jobs">Posted Jobs</TabsTrigger>
