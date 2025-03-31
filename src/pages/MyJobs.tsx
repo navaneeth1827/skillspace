@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Job, JobApplication } from "@/types/job";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const MyJobs = () => {
   const { user } = useAuth();
@@ -18,6 +20,9 @@ const MyJobs = () => {
   const navigate = useNavigate();
   const [postedJobs, setPostedJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [selectedJobApplications, setSelectedJobApplications] = useState<JobApplication[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [isApplicationsDialogOpen, setIsApplicationsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("posted-jobs");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -108,7 +113,6 @@ const MyJobs = () => {
           });
 
           setApplications(processedApplications as JobApplication[]);
-          setActiveTab("my-applications");
         }
       } catch (error) {
         console.error("Error fetching job data:", error);
@@ -123,6 +127,22 @@ const MyJobs = () => {
     };
 
     fetchUserJobs();
+
+    // Setup realtime subscription for job applications
+    const jobApplicationsChannel = supabase
+      .channel('job_applications_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'job_applications'
+      }, (payload) => {
+        fetchUserJobs(); // Refetch data when changes occur
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(jobApplicationsChannel);
+    };
   }, [user, toast]);
 
   const updateApplicationStatus = async (applicationId: string, newStatus: string) => {
@@ -141,6 +161,17 @@ const MyJobs = () => {
             : app
         )
       );
+
+      // Also update in the selected job applications if dialog is open
+      if (isApplicationsDialogOpen) {
+        setSelectedJobApplications(prev => 
+          prev.map(app => 
+            app.id === applicationId 
+              ? { ...app, status: newStatus } 
+              : app
+          )
+        );
+      }
 
       toast({
         title: "Success",
@@ -172,11 +203,22 @@ const MyJobs = () => {
     }
   };
 
+  const handleViewApplications = (job: Job) => {
+    setSelectedJob(job);
+    const jobApplications = applications.filter(app => app.job_id === job.id);
+    setSelectedJobApplications(jobApplications);
+    setIsApplicationsDialogOpen(true);
+  };
+
+  const handleViewProfile = (userId: string) => {
+    navigate(`/profile/${userId}`);
+  };
+
   if (!user) {
     return (
       <div>
         <Navbar />
-        <div className="container py-8 pt-24">
+        <div className="container py-8 pt-36">
           <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
           <p>Please sign in to view your jobs.</p>
         </div>
@@ -187,7 +229,7 @@ const MyJobs = () => {
   return (
     <div>
       <Navbar />
-      <div className="container py-8 pt-24"> {/* Increased padding-top */}
+      <div className="container py-8 pt-36"> {/* Increased padding-top */}
         <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
 
         <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
@@ -195,9 +237,10 @@ const MyJobs = () => {
             {user.user_metadata?.user_type === 'recruiter' && (
               <TabsTrigger value="posted-jobs">Posted Jobs</TabsTrigger>
             )}
-            {user.user_metadata?.user_type === 'recruiter' ? (
+            {user.user_metadata?.user_type === 'recruiter' && (
               <TabsTrigger value="received-applications">Received Applications</TabsTrigger>
-            ) : (
+            )}
+            {user.user_metadata?.user_type !== 'recruiter' && (
               <TabsTrigger value="my-applications">My Applications</TabsTrigger>
             )}
           </TabsList>
@@ -216,42 +259,61 @@ const MyJobs = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {postedJobs.map((job) => (
-                    <Card key={job.id} className="flex flex-col">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle>{job.title}</CardTitle>
-                            <CardDescription className="mt-1">{job.company}</CardDescription>
+                  {postedJobs.map((job) => {
+                    const applicationsCount = applications.filter(app => app.job_id === job.id).length;
+                    
+                    return (
+                      <Card key={job.id} className="flex flex-col">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle>{job.title}</CardTitle>
+                              <CardDescription className="mt-1">{job.company}</CardDescription>
+                            </div>
+                            <Badge className="capitalize">{job.status}</Badge>
                           </div>
-                          <Badge className="capitalize">{job.status}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex-1">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                          <span>{job.location}</span>
-                          <span>•</span>
-                          <span>{job.job_type}</span>
-                          <span>•</span>
-                          <span>{job.salary}</span>
-                        </div>
-                        <p className="line-clamp-3 mb-4">{job.description}</p>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {job.skills?.map((skill, index) => (
-                            <Badge key={index} variant="outline" className="bg-white/5">
-                              {skill}
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                            <span>{job.location}</span>
+                            <span>•</span>
+                            <span>{job.job_type}</span>
+                            <span>•</span>
+                            <span>{job.salary}</span>
+                          </div>
+                          <p className="line-clamp-3 mb-4">{job.description}</p>
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {job.skills?.map((skill, index) => (
+                              <Badge key={index} variant="outline" className="bg-white/5">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="mt-2">
+                            <Badge variant="outline" className="bg-primary/10 text-primary">
+                              {applicationsCount} Application{applicationsCount !== 1 ? 's' : ''}
                             </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="border-t pt-4 flex justify-between">
-                        <div className="text-sm text-muted-foreground">
-                          Posted {new Date(job.created_at).toLocaleDateString()}
-                        </div>
-                        <Button variant="outline" size="sm">Edit</Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
+                          </div>
+                        </CardContent>
+                        <CardFooter className="border-t pt-4 flex justify-between">
+                          <div className="text-sm text-muted-foreground">
+                            Posted {new Date(job.created_at).toLocaleDateString()}
+                          </div>
+                          <div className="space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleViewApplications(job)}
+                              disabled={applicationsCount === 0}
+                            >
+                              View Applications
+                            </Button>
+                            <Button variant="outline" size="sm">Edit</Button>
+                          </div>
+                        </CardFooter>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
@@ -350,6 +412,13 @@ const MyJobs = () => {
                               >
                                 Message
                               </Button>
+                              <Button 
+                                variant="outline" 
+                                className="flex-1"
+                                onClick={() => handleViewProfile(application.user_id)}
+                              >
+                                View Profile
+                              </Button>
                             </div>
                           </>
                         ) : (
@@ -396,6 +465,98 @@ const MyJobs = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Dialog for viewing applications for a specific job */}
+        <Dialog open={isApplicationsDialogOpen} onOpenChange={setIsApplicationsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Applications for {selectedJob?.title}</DialogTitle>
+              <DialogDescription>
+                {selectedJobApplications.length} application{selectedJobApplications.length !== 1 ? 's' : ''} received
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedJobApplications.length === 0 ? (
+              <div className="text-center py-8">
+                <h3 className="text-lg font-medium">No applications received yet</h3>
+                <p className="text-muted-foreground mt-2">Share your job posting to attract more candidates.</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Applicant</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Applied On</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedJobApplications.map((app) => (
+                    <TableRow key={app.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={app.user_info?.avatar_url} />
+                            <AvatarFallback>
+                              {app.user_info?.full_name?.charAt(0) || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{app.user_info?.full_name}</div>
+                            <div className="text-sm text-muted-foreground">{app.user_info?.title || 'No title'}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={app.status === 'pending' ? 'outline' : app.status === 'accepted' ? 'default' : 'secondary'}>
+                          {app.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(app.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewProfile(app.user_id)}
+                          >
+                            View Profile
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleMessageApplicant(app.user_id)}
+                          >
+                            Message
+                          </Button>
+                          {app.status === 'pending' && (
+                            <>
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                onClick={() => updateApplicationStatus(app.id, 'accepted')}
+                              >
+                                Accept
+                              </Button>
+                              <Button 
+                                variant="secondary" 
+                                size="sm"
+                                onClick={() => updateApplicationStatus(app.id, 'rejected')}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

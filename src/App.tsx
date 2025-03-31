@@ -15,6 +15,7 @@ import Calendar from "@/pages/Calendar";
 import FindJob from "@/pages/FindJob";
 import SignIn from "@/pages/SignIn";
 import SignUp from "@/pages/SignUp";
+import Tasks from "@/pages/Tasks";
 
 const router = createBrowserRouter([
   {
@@ -64,6 +65,10 @@ const router = createBrowserRouter([
   {
     path: "/calendar",
     element: <Calendar />,
+  },
+  {
+    path: "/tasks",
+    element: <Tasks />,
   },
   {
     path: "/sign-in",

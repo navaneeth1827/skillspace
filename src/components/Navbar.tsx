@@ -14,7 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { LogOut, MessageSquare, Calendar, Users, Home, Briefcase, UserPlus, LogIn, PlusCircle } from "lucide-react";
+import { LogOut, MessageSquare, Calendar, Users, Home, Briefcase, UserPlus, LogIn, PlusCircle, CheckSquare } from "lucide-react";
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
@@ -44,42 +44,46 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-4xl bg-background/20 backdrop-blur-lg rounded-full border border-white/10 shadow-lg">
+    <nav className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-4xl bg-background/20 backdrop-blur-lg rounded-full border border-white/10 shadow-lg mb-16">
       <div className="container mx-auto flex items-center justify-between px-6 py-3">
         <Link to="/" className="font-bold text-xl text-gradient">
           SkillSpace
         </Link>
 
-        <div className="hidden md:flex items-center space-x-6">
+        <div className="hidden md:flex items-center space-x-4">
           {!isLandingPage && user ? (
             <>
-              <Link to="/dashboard" className="px-3 hover:text-primary transition-colors">
-                <Home className="inline h-4 w-4 mr-2" />
+              <Link to="/dashboard" className="px-2 text-sm hover:text-primary transition-colors">
+                <Home className="inline h-4 w-4 mr-1" />
                 Dashboard
               </Link>
-              <Link to="/jobs" className="px-3 hover:text-primary transition-colors">
-                <Briefcase className="inline h-4 w-4 mr-2" />
+              <Link to="/jobs" className="px-2 text-sm hover:text-primary transition-colors">
+                <Briefcase className="inline h-4 w-4 mr-1" />
                 Find Jobs
               </Link>
-              <Link to="/community" className="px-3 hover:text-primary transition-colors">
-                <Users className="inline h-4 w-4 mr-2" />
+              <Link to="/community" className="px-2 text-sm hover:text-primary transition-colors">
+                <Users className="inline h-4 w-4 mr-1" />
                 Community
               </Link>
-              <Link to="/calendar" className="px-3 hover:text-primary transition-colors">
-                <Calendar className="inline h-4 w-4 mr-2" />
+              <Link to="/calendar" className="px-2 text-sm hover:text-primary transition-colors">
+                <Calendar className="inline h-4 w-4 mr-1" />
                 Calendar
+              </Link>
+              <Link to="/tasks" className="px-2 text-sm hover:text-primary transition-colors">
+                <CheckSquare className="inline h-4 w-4 mr-1" />
+                Tasks
               </Link>
             </>
           ) : null}
           
           {user ? (
             <>
-              <Link to="/messages" className="px-3 hover:text-primary transition-colors">
-                <MessageSquare className="inline h-4 w-4 mr-2" />
+              <Link to="/messages" className="px-2 text-sm hover:text-primary transition-colors">
+                <MessageSquare className="inline h-4 w-4 mr-1" />
                 Messages
               </Link>
-              <Link to="/post-job" className="px-3 hover:text-primary transition-colors">
-                <PlusCircle className="inline h-4 w-4 mr-2" />
+              <Link to="/post-job" className="px-2 text-sm hover:text-primary transition-colors">
+                <PlusCircle className="inline h-4 w-4 mr-1" />
                 Post Job
               </Link>
               <DropdownMenu>
@@ -113,12 +117,12 @@ const Navbar = () => {
             </>
           ) : (
             <>
-              <Link to="/sign-in" className="px-3 hover:text-primary transition-colors">
-                <LogIn className="inline h-4 w-4 mr-2" />
+              <Link to="/sign-in" className="px-2 text-sm hover:text-primary transition-colors">
+                <LogIn className="inline h-4 w-4 mr-1" />
                 Sign In
               </Link>
-              <Link to="/sign-up" className="neon-button px-4 py-2 flex items-center ml-2">
-                <UserPlus className="h-4 w-4 mr-2" />
+              <Link to="/sign-up" className="neon-button px-4 py-2 text-sm flex items-center ml-2">
+                <UserPlus className="h-4 w-4 mr-1" />
                 Sign Up
               </Link>
             </>
@@ -160,6 +164,9 @@ const Navbar = () => {
                   </Link>
                   <Link to="/calendar" className="block w-full px-4 py-2 text-sm hover:bg-white/5 hover:text-primary rounded-lg">
                     Calendar
+                  </Link>
+                  <Link to="/tasks" className="block w-full px-4 py-2 text-sm hover:bg-white/5 hover:text-primary rounded-lg">
+                    Tasks
                   </Link>
                 </>
               ) : null}
