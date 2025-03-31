@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +15,7 @@ import { Job, JobApplication } from "@/types/job";
 const MyJobs = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [postedJobs, setPostedJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [activeTab, setActiveTab] = useState("posted-jobs");
@@ -154,11 +156,27 @@ const MyJobs = () => {
     }
   };
 
+  const handleMessageApplicant = (userId: string) => {
+    navigate(`/messages/${userId}`);
+  };
+
+  const handleMessageRecruiter = (jobInfo: any) => {
+    if (jobInfo?.recruiter_id) {
+      navigate(`/messages/${jobInfo.recruiter_id}`);
+    } else {
+      toast({
+        title: "Error",
+        description: "Could not find recruiter information to message.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (!user) {
     return (
       <div>
         <Navbar />
-        <div className="container py-8">
+        <div className="container py-8 pt-24">
           <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
           <p>Please sign in to view your jobs.</p>
         </div>
@@ -169,7 +187,7 @@ const MyJobs = () => {
   return (
     <div>
       <Navbar />
-      <div className="container py-8">
+      <div className="container py-8 pt-24"> {/* Increased padding-top */}
         <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
 
         <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
@@ -328,7 +346,7 @@ const MyJobs = () => {
                               <Button 
                                 variant="outline" 
                                 className="flex-1"
-                                onClick={() => {/* Navigate to messages with this user */}}
+                                onClick={() => handleMessageApplicant(application.user_id)}
                               >
                                 Message
                               </Button>
@@ -365,7 +383,7 @@ const MyJobs = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => {/* Navigate to messages with this recruiter */}}
+                            onClick={() => handleMessageRecruiter(jobInfo)}
                           >
                             Message Recruiter
                           </Button>

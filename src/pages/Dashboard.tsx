@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -287,7 +288,7 @@ const Dashboard = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <main className="flex-1 py-10">
+      <main className="flex-1 py-10 pt-24"> {/* Updated padding-top */}
         <div className="container px-4 md:px-6">
           <div className="flex flex-col gap-12">
             <div className="flex flex-col md:flex-row gap-8">
