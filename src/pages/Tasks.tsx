@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import Button from "@/components/Button";
@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   CheckCircle2, 
   Circle, 
@@ -18,7 +20,8 @@ import {
   CalendarClock,
   ArrowUp,
   ArrowDown,
-  Edit3
+  Edit3,
+  Trash2
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -30,73 +33,29 @@ type Priority = "low" | "medium" | "high";
 interface Task {
   id: string;
   title: string;
-  description: string;
-  dueDate: string;
+  description: string | null;
+  due_date: string | null;
   priority: Priority;
   status: "todo" | "in-progress" | "completed";
-  project: string;
+  project: string | null;
+  user_id: string;
 }
-
-// Sample initial tasks
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Complete website redesign for client",
-    description: "Finish the homepage and about page designs",
-    dueDate: "2023-06-20",
-    priority: "high",
-    status: "in-progress",
-    project: "Website Redesign"
-  },
-  {
-    id: "2",
-    title: "Send invoice to TechCorp",
-    description: "Create and send invoice for completed work",
-    dueDate: "2023-06-15",
-    priority: "medium",
-    status: "todo",
-    project: "Invoicing"
-  },
-  {
-    id: "3",
-    title: "Update portfolio with recent projects",
-    description: "Add case studies for the last 3 projects",
-    dueDate: "2023-06-25",
-    priority: "low",
-    status: "todo",
-    project: "Personal"
-  },
-  {
-    id: "4",
-    title: "Research new design tools",
-    description: "Look into Figma alternatives and new plugins",
-    dueDate: "2023-06-18",
-    priority: "low",
-    status: "completed",
-    project: "Research"
-  },
-  {
-    id: "5",
-    title: "Client meeting preparation",
-    description: "Prepare slides and demo for the client meeting",
-    dueDate: "2023-06-14",
-    priority: "high",
-    status: "todo",
-    project: "Client Meeting"
-  }
-];
 
 const Tasks = () => {
   const { toast } = useToast();
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>(initialTasks);
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [isEditingTask, setIsEditingTask] = useState(false);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [newTask, setNewTask] = useState<Omit<Task, "id">>({
+  const [loading, setLoading] = useState(true);
+  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [newTask, setNewTask] = useState<Omit<Task, "id" | "user_id">>({
     title: "",
     description: "",
-    dueDate: "",
+    due_date: "",
     priority: "medium",
     status: "todo",
     project: ""
@@ -108,6 +67,97 @@ const Tasks = () => {
   const inProgressTasks = tasks.filter(task => task.status === "in-progress").length;
   const todoTasks = tasks.filter(task => task.status === "todo").length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  
+  // Fetch tasks from the database
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchTasks = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setTasks(data as Task[]);
+          setFilteredTasks(data as Task[]);
+        }
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load tasks. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTasks();
+    
+    // Set up real-time subscription for tasks
+    const tasksChannel = supabase
+      .channel('tasks_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tasks',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        // Handle different events
+        if (payload.eventType === 'INSERT') {
+          setTasks(prev => [payload.new as Task, ...prev]);
+          if (filter === 'all' || filter === (payload.new as Task).status || 
+             (filter === (payload.new as Task).priority && ['high', 'medium', 'low'].includes(filter))) {
+            setFilteredTasks(prev => [payload.new as Task, ...prev]);
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          setTasks(prev => prev.map(task => 
+            task.id === (payload.new as Task).id ? (payload.new as Task) : task
+          ));
+          setFilteredTasks(prev => {
+            // Check if the updated task should be in the filtered list
+            const updatedTask = payload.new as Task;
+            const shouldBeIncluded = 
+              filter === 'all' || 
+              filter === updatedTask.status || 
+              (filter === updatedTask.priority && ['high', 'medium', 'low'].includes(filter));
+            
+            // If task should be in the filter but isn't in the current list
+            const taskExists = prev.some(task => task.id === updatedTask.id);
+            if (shouldBeIncluded && !taskExists) {
+              return [updatedTask, ...prev];
+            }
+            
+            // If task shouldn't be in the filter but is in the current list
+            if (!shouldBeIncluded && taskExists) {
+              return prev.filter(task => task.id !== updatedTask.id);
+            }
+            
+            // Just update the task
+            return prev.map(task => 
+              task.id === updatedTask.id ? updatedTask : task
+            );
+          });
+        } else if (payload.eventType === 'DELETE') {
+          setTasks(prev => prev.filter(task => task.id !== (payload.old as Task).id));
+          setFilteredTasks(prev => prev.filter(task => task.id !== (payload.old as Task).id));
+        }
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(tasksChannel);
+    };
+  }, [user, toast, filter]);
   
   // Handle filter changes
   const handleFilterChange = (newFilter: string) => {
@@ -138,90 +188,177 @@ const Tasks = () => {
     const searchResults = tasks.filter(
       task => 
         task.title.toLowerCase().includes(lowercaseQuery) || 
-        task.description.toLowerCase().includes(lowercaseQuery) ||
-        task.project.toLowerCase().includes(lowercaseQuery)
+        (task.description?.toLowerCase().includes(lowercaseQuery) || false) ||
+        (task.project?.toLowerCase().includes(lowercaseQuery) || false)
     );
     
     setFilteredTasks(searchResults);
   };
   
   // Add new task
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const taskToAdd = {
-      ...newTask,
-      id: Math.random().toString(36).substring(2, 9)
-    };
-    
-    const updatedTasks = [...tasks, taskToAdd];
-    setTasks(updatedTasks);
-    
-    // Update filtered tasks based on current filter
-    if (filter === "all" || filter === newTask.status || 
-       (filter === newTask.priority && ["high", "medium", "low"].includes(filter))) {
-      setFilteredTasks([...filteredTasks, taskToAdd]);
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to add tasks."
+      });
+      return;
     }
     
-    setIsAddingTask(false);
-    setNewTask({
-      title: "",
-      description: "",
-      dueDate: "",
-      priority: "medium",
-      status: "todo",
-      project: ""
-    });
+    try {
+      const taskToAdd = {
+        ...newTask,
+        user_id: user.id
+      };
+      
+      const { error } = await supabase
+        .from('tasks')
+        .insert(taskToAdd);
+      
+      if (error) throw error;
+      
+      setIsAddingTask(false);
+      setNewTask({
+        title: "",
+        description: "",
+        due_date: "",
+        priority: "medium",
+        status: "todo",
+        project: ""
+      });
+      
+      toast({
+        title: "Task added",
+        description: "New task has been added to your list."
+      });
+    } catch (error) {
+      console.error('Error adding task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add task. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Edit task
+  const handleEditTask = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    toast({
-      title: "Task added",
-      description: "New task has been added to your list."
-    });
+    if (!user || !currentTask) return;
+    
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          title: newTask.title,
+          description: newTask.description,
+          due_date: newTask.due_date,
+          priority: newTask.priority,
+          status: newTask.status,
+          project: newTask.project,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentTask.id)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      setIsEditingTask(false);
+      setCurrentTask(null);
+      
+      toast({
+        title: "Task updated",
+        description: "Your task has been updated successfully."
+      });
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update task. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   // Toggle task status
-  const toggleTaskStatus = (id: string) => {
-    const updatedTasks = tasks.map(task => {
-      if (task.id === id) {
-        // Cycle through statuses: todo -> in-progress -> completed -> todo
-        let newStatus: "todo" | "in-progress" | "completed";
-        
-        if (task.status === "todo") newStatus = "in-progress";
-        else if (task.status === "in-progress") newStatus = "completed";
-        else newStatus = "todo";
-        
-        return { ...task, status: newStatus };
-      }
-      return task;
-    });
+  const toggleTaskStatus = async (id: string, currentStatus: string) => {
+    if (!user) return;
     
-    setTasks(updatedTasks);
+    // Cycle through statuses: todo -> in-progress -> completed -> todo
+    let newStatus: "todo" | "in-progress" | "completed";
     
-    // Update filtered tasks
-    if (filter === "all") {
-      setFilteredTasks(updatedTasks);
-    } else {
-      handleFilterChange(filter);
+    if (currentStatus === "todo") newStatus = "in-progress";
+    else if (currentStatus === "in-progress") newStatus = "completed";
+    else newStatus = "todo";
+    
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Task updated",
+        description: "Task status has been updated."
+      });
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update task status. Please try again.",
+        variant: "destructive"
+      });
     }
-    
-    toast({
-      title: "Task updated",
-      description: "Task status has been updated."
-    });
   };
   
   // Delete task
-  const deleteTask = (id: string) => {
-    const updatedTasks = tasks.filter(task => task.id !== id);
-    setTasks(updatedTasks);
+  const deleteTask = async (id: string) => {
+    if (!user) return;
     
-    // Update filtered tasks
-    setFilteredTasks(filteredTasks.filter(task => task.id !== id));
-    
-    toast({
-      title: "Task deleted",
-      description: "Task has been removed from your list."
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Task deleted",
+        description: "Task has been removed from your list."
+      });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete task. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Open edit task modal
+  const openEditModal = (task: Task) => {
+    setCurrentTask(task);
+    setNewTask({
+      title: task.title,
+      description: task.description || "",
+      due_date: task.due_date || "",
+      priority: task.priority,
+      status: task.status,
+      project: task.project || ""
     });
+    setIsEditingTask(true);
   };
   
   // Get status icon
@@ -259,6 +396,17 @@ const Tasks = () => {
             Low
           </Badge>
         );
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return null;
+    
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (e) {
+      return dateString;
     }
   };
 
@@ -368,7 +516,12 @@ const Tasks = () => {
               </DropdownMenu>
             </div>
             
-            {filteredTasks.length > 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin h-8 w-8 border-2 border-purple-500 rounded-full border-t-transparent mx-auto mb-4"></div>
+                <p>Loading your tasks...</p>
+              </div>
+            ) : filteredTasks.length > 0 ? (
               <div className="space-y-3">
                 {filteredTasks.map(task => (
                   <div 
@@ -384,7 +537,7 @@ const Tasks = () => {
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3">
                         <button 
-                          onClick={() => toggleTaskStatus(task.id)}
+                          onClick={() => toggleTaskStatus(task.id, task.status)}
                           className="mt-0.5"
                         >
                           {getStatusIcon(task.status)}
@@ -409,10 +562,10 @@ const Tasks = () => {
                               </Badge>
                             )}
                             
-                            {task.dueDate && (
+                            {task.due_date && (
                               <div className="flex items-center text-xs text-white/60">
                                 <CalendarClock className="h-3 w-3 mr-1" />
-                                <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                <span>Due: {formatDate(task.due_date)}</span>
                               </div>
                             )}
                           </div>
@@ -426,7 +579,7 @@ const Tasks = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditModal(task)}>
                             <Edit3 className="h-4 w-4 mr-2" />
                             Edit Task
                           </DropdownMenuItem>
@@ -435,6 +588,7 @@ const Tasks = () => {
                             className="text-red-500 focus:text-red-500"
                             onClick={() => deleteTask(task.id)}
                           >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             Delete Task
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -490,7 +644,7 @@ const Tasks = () => {
                 <div>
                   <label className="text-sm font-medium">Description (Optional)</label>
                   <Textarea
-                    value={newTask.description}
+                    value={newTask.description || ""}
                     onChange={e => setNewTask({...newTask, description: e.target.value})}
                     placeholder="Enter task description"
                     className="mt-1"
@@ -500,11 +654,10 @@ const Tasks = () => {
                 <div>
                   <label className="text-sm font-medium">Project/Category</label>
                   <Input
-                    value={newTask.project}
+                    value={newTask.project || ""}
                     onChange={e => setNewTask({...newTask, project: e.target.value})}
                     placeholder="e.g. Website Redesign, Client X"
                     className="mt-1"
-                    required
                   />
                 </div>
                 
@@ -512,8 +665,8 @@ const Tasks = () => {
                   <label className="text-sm font-medium">Due Date (Optional)</label>
                   <Input
                     type="date"
-                    value={newTask.dueDate}
-                    onChange={e => setNewTask({...newTask, dueDate: e.target.value})}
+                    value={newTask.due_date || ""}
+                    onChange={e => setNewTask({...newTask, due_date: e.target.value})}
                     className="mt-1"
                   />
                 </div>
@@ -561,6 +714,153 @@ const Tasks = () => {
                   </Button>
                   <Button type="submit" className="flex-1">
                     Add Task
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Edit Task Modal */}
+      {isEditingTask && currentTask && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+          <div className="glass-card p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-medium">Edit Task</h2>
+              <button 
+                onClick={() => {
+                  setIsEditingTask(false);
+                  setCurrentTask(null);
+                }}
+                className="text-white/50 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditTask}>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Task Title</label>
+                  <Input
+                    value={newTask.title}
+                    onChange={e => setNewTask({...newTask, title: e.target.value})}
+                    placeholder="Enter task title"
+                    className="mt-1"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Description (Optional)</label>
+                  <Textarea
+                    value={newTask.description || ""}
+                    onChange={e => setNewTask({...newTask, description: e.target.value})}
+                    placeholder="Enter task description"
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Project/Category</label>
+                  <Input
+                    value={newTask.project || ""}
+                    onChange={e => setNewTask({...newTask, project: e.target.value})}
+                    placeholder="e.g. Website Redesign, Client X"
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Due Date (Optional)</label>
+                  <Input
+                    type="date"
+                    value={newTask.due_date || ""}
+                    onChange={e => setNewTask({...newTask, due_date: e.target.value})}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Priority</label>
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    <Button
+                      type="button"
+                      variant={newTask.priority === "low" ? "default" : "outline"}
+                      className={`${newTask.priority === "low" ? "bg-green-500/20 text-green-400 border-green-500/30" : ""}`}
+                      onClick={() => setNewTask({...newTask, priority: "low"})}
+                    >
+                      <ArrowDown className="h-4 w-4 mr-1" />
+                      Low
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newTask.priority === "medium" ? "default" : "outline"}
+                      className={`${newTask.priority === "medium" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" : ""}`}
+                      onClick={() => setNewTask({...newTask, priority: "medium"})}
+                    >
+                      Medium
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newTask.priority === "high" ? "default" : "outline"}
+                      className={`${newTask.priority === "high" ? "bg-red-500/20 text-red-400 border-red-500/30" : ""}`}
+                      onClick={() => setNewTask({...newTask, priority: "high"})}
+                    >
+                      <ArrowUp className="h-4 w-4 mr-1" />
+                      High
+                    </Button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Status</label>
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    <Button
+                      type="button"
+                      variant={newTask.status === "todo" ? "default" : "outline"}
+                      className={`${newTask.status === "todo" ? "bg-gray-500/20 text-gray-200 border-gray-500/30" : ""}`}
+                      onClick={() => setNewTask({...newTask, status: "todo"})}
+                    >
+                      <Circle className="h-4 w-4 mr-1" />
+                      To Do
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newTask.status === "in-progress" ? "default" : "outline"}
+                      className={`${newTask.status === "in-progress" ? "bg-purple-500/20 text-purple-400 border-purple-500/30" : ""}`}
+                      onClick={() => setNewTask({...newTask, status: "in-progress"})}
+                    >
+                      <Clock className="h-4 w-4 mr-1" />
+                      In Progress
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newTask.status === "completed" ? "default" : "outline"}
+                      className={`${newTask.status === "completed" ? "bg-green-500/20 text-green-400 border-green-500/30" : ""}`}
+                      onClick={() => setNewTask({...newTask, status: "completed"})}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                      Completed
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="pt-2 flex gap-3">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => {
+                      setIsEditingTask(false);
+                      setCurrentTask(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="flex-1">
+                    Save Changes
                   </Button>
                 </div>
               </div>

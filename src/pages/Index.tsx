@@ -21,7 +21,7 @@ const Index = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <main className="flex-1 pt-16"> {/* Reduced padding-top for index page */}
+      <main className="flex-1 pt-16"> {/* Adjusted padding-top for index page */}
         <HeroSection />
         <AboutSection />
         <FeaturedJobs />
