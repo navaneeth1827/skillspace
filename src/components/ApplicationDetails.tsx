@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useJobApplications } from '@/hooks/useJobApplications';
+import { useProfileData } from '@/hooks/useProfileData';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,8 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { CalendarIcon, ClockIcon, ExternalLinkIcon, MessageSquareIcon, UserIcon } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription } from '@/components/ui/card';
+import { CalendarIcon, ClockIcon, ExternalLinkIcon, GlobeIcon, MailIcon, MessageSquareIcon, PhoneIcon, UserIcon } from 'lucide-react';
 import { JobApplication, ApplicationStatusHistory } from '@/types/job';
+import { PortfolioItem, ExperienceItem, EducationItem } from '@/types/profile';
 import { cn } from '@/lib/utils';
 
 interface ApplicationDetailsProps {
@@ -29,11 +33,14 @@ const ApplicationDetails = ({
   onStatusUpdate,
   onMessage
 }: ApplicationDetailsProps) => {
+  const navigate = useNavigate();
   const { getApplicationHistory, updateApplicationStatus, isLoading } = useJobApplications();
+  const { portfolio, experience, education, isLoading: isLoadingProfile } = useProfileData(application.user_id);
   const [statusHistory, setStatusHistory] = useState<ApplicationStatusHistory[]>([]);
   const [newStatus, setNewStatus] = useState(application.status);
   const [statusNotes, setStatusNotes] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [activeTab, setActiveTab] = useState('profile');
 
   useEffect(() => {
     if (isOpen) {
@@ -81,12 +88,14 @@ const ApplicationDetails = ({
   const handleMessageClick = () => {
     if (onMessage && application.user_id) {
       onMessage(application.user_id);
+    } else if (application.user_id) {
+      navigate(`/messages/${application.user_id}`);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Application Details</DialogTitle>
           <DialogDescription>
@@ -94,67 +103,215 @@ const ApplicationDetails = ({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
-          <div className="md:col-span-2 space-y-6">
-            {/* Applicant Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Applicant Information</h3>
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={application.user_info?.avatar_url} />
-                  <AvatarFallback>
-                    {application.user_info?.full_name?.charAt(0) || <UserIcon className="h-5 w-5" />}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">{application.user_info?.full_name}</div>
-                  <div className="text-sm text-muted-foreground">{application.user_info?.title || 'No title'}</div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-4 w-full">
+            <TabsTrigger value="profile">Applicant Profile</TabsTrigger>
+            <TabsTrigger value="application">Application Details</TabsTrigger>
+            <TabsTrigger value="history">Status History</TabsTrigger>
+          </TabsList>
+          
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="space-y-6">
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Left Column - Basic Info */}
+              <div className="md:w-1/3 space-y-4">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={application.user_info?.avatar_url} />
+                    <AvatarFallback>
+                      {application.user_info?.full_name?.charAt(0) || <UserIcon className="h-8 w-8" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-xl font-semibold">{application.user_info?.full_name}</h3>
+                    <p className="text-muted-foreground">{application.user_info?.title || 'No title'}</p>
+                  </div>
                 </div>
+                
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex justify-between">
+                      <Badge className="capitalize">
+                        {application.status}
+                      </Badge>
+                      <div className="text-xs text-muted-foreground">
+                        Applied {format(new Date(application.created_at), 'PPP')}
+                      </div>
+                    </div>
+                    
+                    {application.expected_salary && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">Salary Expectation:</span>
+                        <span>{application.expected_salary}</span>
+                      </div>
+                    )}
+                    
+                    {application.availability_date && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">Available From:</span>
+                        <span>{format(new Date(application.availability_date), 'PPP')}</span>
+                      </div>
+                    )}
+                    
+                    <div className="border-t pt-3 flex flex-col gap-2">
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="w-full"
+                        onClick={handleMessageClick}
+                      >
+                        <MessageSquareIcon className="mr-2 h-4 w-4" />
+                        Message Applicant
+                      </Button>
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full"
+                        asChild
+                      >
+                        <Link to={`/profile/${application.user_id}`}>
+                          <UserIcon className="mr-2 h-4 w-4" />
+                          View Full Profile
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Contact & Links Section */}
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <h4 className="font-medium text-sm">Contact Information</h4>
+                    <div className="flex flex-col gap-2 text-sm">
+                      {application.portfolio_url && (
+                        <a 
+                          href={application.portfolio_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-primary hover:underline"
+                        >
+                          <GlobeIcon className="h-4 w-4" />
+                          Portfolio Website
+                        </a>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <MessageSquareIcon className="h-4 w-4 text-muted-foreground" />
+                        <span>Via Platform Messaging</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                {application.expected_salary && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">Salary Expectation:</span>
-                    <span>{application.expected_salary}</span>
-                  </div>
-                )}
+              {/* Right Column - Experience, Education, Portfolio */}
+              <div className="md:w-2/3 space-y-6">
+                {/* Experience Section */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-4">Experience</h3>
+                  {isLoadingProfile ? (
+                    <div className="text-center p-4">
+                      <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent mx-auto"></div>
+                      <p className="text-sm text-muted-foreground mt-2">Loading experience...</p>
+                    </div>
+                  ) : experience && experience.length > 0 ? (
+                    <div className="space-y-4">
+                      {experience.map((item: ExperienceItem) => (
+                        <Card key={item.id}>
+                          <CardContent className="p-4">
+                            <div className="flex justify-between">
+                              <div>
+                                <h4 className="font-medium">{item.title}</h4>
+                                <p className="text-sm text-muted-foreground">{item.company}</p>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {item.start_date} - {item.end_date || 'Present'}
+                              </div>
+                            </div>
+                            {item.description && (
+                              <p className="text-sm mt-2">{item.description}</p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No experience information available.</p>
+                  )}
+                </div>
                 
-                {application.availability_date && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">Available From:</span>
-                    <span>{format(new Date(application.availability_date), 'PPP')}</span>
-                  </div>
-                )}
+                {/* Education Section */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-4">Education</h3>
+                  {isLoadingProfile ? (
+                    <div className="text-center p-4">
+                      <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent mx-auto"></div>
+                      <p className="text-sm text-muted-foreground mt-2">Loading education...</p>
+                    </div>
+                  ) : education && education.length > 0 ? (
+                    <div className="space-y-4">
+                      {education.map((item: EducationItem) => (
+                        <Card key={item.id}>
+                          <CardContent className="p-4">
+                            <div className="flex justify-between">
+                              <div>
+                                <h4 className="font-medium">{item.degree}</h4>
+                                <p className="text-sm text-muted-foreground">{item.school}</p>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {item.year_range}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No education information available.</p>
+                  )}
+                </div>
                 
-                {application.portfolio_url && (
-                  <div className="col-span-full">
-                    <a 
-                      href={application.portfolio_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center text-primary hover:underline"
-                    >
-                      View Portfolio <ExternalLinkIcon className="ml-1 h-3 w-3" />
-                    </a>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <Badge 
-                  variant={getStatusBadgeVariant(application.status)}
-                >
-                  {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                </Badge>
-                
-                <div className="flex items-center text-xs text-muted-foreground">
-                  <CalendarIcon className="mr-1 h-3 w-3" />
-                  Applied {format(new Date(application.created_at), 'PPP')}
+                {/* Portfolio Section */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-4">Portfolio</h3>
+                  {isLoadingProfile ? (
+                    <div className="text-center p-4">
+                      <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent mx-auto"></div>
+                      <p className="text-sm text-muted-foreground mt-2">Loading portfolio...</p>
+                    </div>
+                  ) : portfolio && portfolio.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {portfolio.map((item: PortfolioItem) => (
+                        <Card key={item.id}>
+                          <CardContent className="p-4">
+                            <h4 className="font-medium">{item.title}</h4>
+                            {item.description && (
+                              <p className="text-sm mt-1 text-muted-foreground line-clamp-2">{item.description}</p>
+                            )}
+                            {item.link && (
+                              <a 
+                                href={item.link} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline mt-2 inline-flex items-center"
+                              >
+                                View Project <ExternalLinkIcon className="ml-1 h-3 w-3" />
+                              </a>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No portfolio items available.</p>
+                  )}
                 </div>
               </div>
             </div>
-            
+          </TabsContent>
+          
+          {/* Application Tab */}
+          <TabsContent value="application" className="space-y-6">
             {/* Cover Letter */}
             <div className="space-y-3">
               <h3 className="font-semibold text-lg">Cover Letter</h3>
@@ -163,7 +320,49 @@ const ApplicationDetails = ({
               </div>
             </div>
             
-            {/* Status History */}
+            {/* Update Status Form */}
+            <div className="border rounded-md p-4 space-y-4">
+              <h3 className="font-semibold">Update Application Status</h3>
+              
+              <div className="space-y-2">
+                <Label htmlFor="status">New Status</Label>
+                <Select value={newStatus} onValueChange={setNewStatus}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="reviewing">Reviewing</SelectItem>
+                    <SelectItem value="interview">Interview</SelectItem>
+                    <SelectItem value="accepted">Accepted</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Textarea 
+                  id="notes" 
+                  placeholder="Add notes about this status change"
+                  value={statusNotes}
+                  onChange={(e) => setStatusNotes(e.target.value)}
+                  className="h-20"
+                />
+              </div>
+              
+              <Button 
+                onClick={handleStatusUpdate} 
+                disabled={isLoading || newStatus === application.status}
+                className="w-full"
+              >
+                {isLoading ? "Updating..." : "Update Status"}
+              </Button>
+            </div>
+          </TabsContent>
+          
+          {/* Status History Tab */}
+          <TabsContent value="history">
             <div className="space-y-3">
               <h3 className="font-semibold text-lg">Status History</h3>
               {loadingHistory ? (
@@ -201,77 +400,8 @@ const ApplicationDetails = ({
                 </div>
               )}
             </div>
-          </div>
-          
-          <div className="space-y-6">
-            {/* Update Status Form */}
-            <div className="space-y-4 border rounded-md p-4">
-              <h3 className="font-semibold">Update Status</h3>
-              
-              <div className="space-y-2">
-                <Label htmlFor="status">New Status</Label>
-                <Select value={newStatus} onValueChange={setNewStatus}>
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="reviewing">Reviewing</SelectItem>
-                    <SelectItem value="interview">Interview</SelectItem>
-                    <SelectItem value="accepted">Accepted</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea 
-                  id="notes" 
-                  placeholder="Add notes about this status change"
-                  value={statusNotes}
-                  onChange={(e) => setStatusNotes(e.target.value)}
-                  className="h-20"
-                />
-              </div>
-              
-              <Button 
-                onClick={handleStatusUpdate} 
-                disabled={isLoading || newStatus === application.status}
-                className="w-full"
-              >
-                {isLoading ? "Updating..." : "Update Status"}
-              </Button>
-            </div>
-            
-            {/* Actions */}
-            <div className="space-y-4">
-              <h3 className="font-semibold">Actions</h3>
-              
-              <div className="grid grid-cols-1 gap-2">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={handleMessageClick}
-                >
-                  <MessageSquareIcon className="mr-2 h-4 w-4" /> 
-                  Message Applicant
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  asChild
-                >
-                  <Link to={`/profile/${application.user_id}`}>
-                    <UserIcon className="mr-2 h-4 w-4" /> 
-                    View Profile
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
