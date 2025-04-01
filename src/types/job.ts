@@ -23,6 +23,10 @@ export interface Job {
     avatar_url: string;
     title: string;
   };
+  requirements?: string;
+  application_instructions?: string;
+  visibility?: string;
+  application_count?: number;
 }
 
 export interface JobApplication {
@@ -39,4 +43,29 @@ export interface JobApplication {
     avatar_url: string;
     title: string;
   };
+  resume_url?: string;
+  portfolio_url?: string;
+  availability_date?: string;
+  expected_salary?: string;
+  interview_date?: string;
+}
+
+export interface ApplicationStatusHistory {
+  id: string;
+  application_id: string;
+  status: string;
+  notes?: string;
+  changed_by: string;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: string;
+  related_id?: string;
+  is_read: boolean;
+  created_at: string;
 }

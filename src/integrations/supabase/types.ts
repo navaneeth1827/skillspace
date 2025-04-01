@@ -150,30 +150,80 @@ export type Database = {
         }
         Relationships: []
       }
-      job_applications: {
+      job_application_status_history: {
         Row: {
-          cover_letter: string | null
+          application_id: string | null
+          changed_by: string | null
           created_at: string | null
           id: string
+          notes: string | null
+          status: string
+        }
+        Insert: {
+          application_id?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          status: string
+        }
+        Update: {
+          application_id?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_application_status_history_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_applications: {
+        Row: {
+          availability_date: string | null
+          cover_letter: string | null
+          created_at: string | null
+          expected_salary: string | null
+          id: string
+          interview_date: string | null
           job_id: string
+          portfolio_url: string | null
+          resume_url: string | null
           status: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          availability_date?: string | null
           cover_letter?: string | null
           created_at?: string | null
+          expected_salary?: string | null
           id?: string
+          interview_date?: string | null
           job_id: string
+          portfolio_url?: string | null
+          resume_url?: string | null
           status?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          availability_date?: string | null
           cover_letter?: string | null
           created_at?: string | null
+          expected_salary?: string | null
           id?: string
+          interview_date?: string | null
           job_id?: string
+          portfolio_url?: string | null
+          resume_url?: string | null
           status?: string | null
           updated_at?: string | null
           user_id?: string
@@ -190,55 +240,70 @@ export type Database = {
       }
       jobs: {
         Row: {
+          application_count: number | null
+          application_instructions: string | null
           budget_max: number | null
           budget_min: number | null
           category: string
           company: string
           created_at: string | null
+          deadline: string | null
           description: string
           id: string
           job_type: string
           location: string
           recruiter_id: string | null
+          requirements: string | null
           salary: string
           skills: string[]
           status: string | null
           title: string
           updated_at: string | null
+          visibility: string | null
         }
         Insert: {
+          application_count?: number | null
+          application_instructions?: string | null
           budget_max?: number | null
           budget_min?: number | null
           category?: string
           company?: string
           created_at?: string | null
+          deadline?: string | null
           description: string
           id?: string
           job_type?: string
           location?: string
           recruiter_id?: string | null
+          requirements?: string | null
           salary?: string
           skills?: string[]
           status?: string | null
           title: string
           updated_at?: string | null
+          visibility?: string | null
         }
         Update: {
+          application_count?: number | null
+          application_instructions?: string | null
           budget_max?: number | null
           budget_min?: number | null
           category?: string
           company?: string
           created_at?: string | null
+          deadline?: string | null
           description?: string
           id?: string
           job_type?: string
           location?: string
           recruiter_id?: string | null
+          requirements?: string | null
           salary?: string
           skills?: string[]
           status?: string | null
           title?: string
           updated_at?: string | null
+          visibility?: string | null
         }
         Relationships: [
           {
@@ -288,6 +353,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          related_id: string | null
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          related_id?: string | null
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          related_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       portfolio: {
         Row: {
@@ -458,21 +556,26 @@ export type Database = {
           p_user_id: string
         }
         Returns: {
+          application_count: number | null
+          application_instructions: string | null
           budget_max: number | null
           budget_min: number | null
           category: string
           company: string
           created_at: string | null
+          deadline: string | null
           description: string
           id: string
           job_type: string
           location: string
           recruiter_id: string | null
+          requirements: string | null
           salary: string
           skills: string[]
           status: string | null
           title: string
           updated_at: string | null
+          visibility: string | null
         }[]
       }
     }

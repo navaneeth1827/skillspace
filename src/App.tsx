@@ -5,6 +5,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 
 import Index from "@/pages/Index";
 import Jobs from "@/pages/Jobs";
+import JobDetails from "@/pages/JobDetails";
 import PostJob from "@/pages/PostJob";
 import Profile from "@/pages/Profile";
 import MyJobs from "@/pages/MyJobs";
@@ -25,6 +26,10 @@ const router = createBrowserRouter([
   {
     path: "/jobs",
     element: <Jobs />,
+  },
+  {
+    path: "/jobs/:jobId",
+    element: <JobDetails />,
   },
   {
     path: "/find-job",

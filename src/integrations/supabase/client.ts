@@ -67,4 +67,6 @@ export interface Task {
 type ExtendedSupabaseClient = typeof supabaseClient & {
   from(table: 'calendar_events'): any;
   from(table: 'tasks'): any;
+  from(table: 'job_application_status_history'): any;
+  from(table: 'notifications'): any;
 }
