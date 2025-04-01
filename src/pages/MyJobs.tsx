@@ -23,8 +23,8 @@ const MyJobs = () => {
   const [selectedJobApplications, setSelectedJobApplications] = useState<JobApplication[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isApplicationsDialogOpen, setIsApplicationsDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("posted-jobs");
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>("");
 
   useEffect(() => {
     if (!user) return;
@@ -41,6 +41,7 @@ const MyJobs = () => {
       try {
         // Fetch posted jobs and applications for recruiters
         if (user.user_metadata?.user_type === 'recruiter') {
+          console.log("Fetching data for recruiter");
           const { data: jobsData, error: jobsError } = await supabase
             .from('jobs')
             .select(`
@@ -51,22 +52,37 @@ const MyJobs = () => {
             .order('created_at', { ascending: false });
 
           if (jobsError) throw jobsError;
+          console.log("Jobs data:", jobsData);
 
+          // Process jobs data
+          const processedJobs = jobsData?.map(job => ({
+            ...job,
+            skills: job.skills || [],
+            budget: job.budget_min || 0
+          })) || [];
+          
+          setPostedJobs(processedJobs as Job[]);
+
+          // Fetch applications for recruiter's jobs
           if (jobsData && jobsData.length > 0) {
             const jobIds = jobsData.map(job => job.id);
+            console.log("Fetching applications for job IDs:", jobIds);
+            
             const { data: applicationsData, error: applicationsError } = await supabase
               .from('job_applications')
               .select(`
                 *,
-                user_info:profiles!job_applications_user_id_fkey(full_name, avatar_url, title)
+                user_info:profiles!job_applications_user_id_fkey(full_name, avatar_url, title),
+                job:jobs(*)
               `)
               .in('job_id', jobIds)
               .order('created_at', { ascending: false });
 
             if (applicationsError) throw applicationsError;
+            console.log("Applications data:", applicationsData);
 
-            const processedApplications = applicationsData.map(app => {
-              if ('error' in app.user_info) {
+            const processedApplications = applicationsData?.map(app => {
+              if (!app.user_info || 'error' in app.user_info) {
                 return {
                   ...app,
                   user_info: {
@@ -77,20 +93,15 @@ const MyJobs = () => {
                 };
               }
               return app;
-            });
+            }) || [];
 
             setApplications(processedApplications as JobApplication[]);
+          } else {
+            setApplications([]);
           }
-
-          const processedJobs = jobsData.map(job => ({
-            ...job,
-            skills: job.skills || [],
-            budget: job.budget_min || 0
-          }));
-
-          setPostedJobs(processedJobs as Job[]);
         } else {
           // Fetch job applications for freelancers
+          console.log("Fetching data for freelancer");
           const { data: appliedJobsData, error: appliedJobsError } = await supabase
             .from('job_applications')
             .select(`
@@ -104,8 +115,9 @@ const MyJobs = () => {
             .order('created_at', { ascending: false });
 
           if (appliedJobsError) throw appliedJobsError;
+          console.log("Freelancer applications:", appliedJobsData);
 
-          const processedApplications = appliedJobsData.map(app => {
+          const processedApplications = appliedJobsData?.map(app => {
             return {
               ...app,
               user_info: {
@@ -119,7 +131,7 @@ const MyJobs = () => {
                 budget: app.job.budget_min || 0
               } : undefined
             };
-          });
+          }) || [];
 
           setApplications(processedApplications as JobApplication[]);
         }
@@ -145,6 +157,7 @@ const MyJobs = () => {
         schema: 'public',
         table: 'job_applications'
       }, (payload) => {
+        console.log("Real-time update received:", payload);
         fetchUserJobs(); // Refetch data when changes occur
       })
       .subscribe();
@@ -227,7 +240,7 @@ const MyJobs = () => {
     return (
       <div>
         <Navbar />
-        <div className="container py-8 pt-44"> {/* Increased padding-top */}
+        <div className="container py-8 pt-44">
           <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
           <p>Please sign in to view your jobs.</p>
         </div>
@@ -238,22 +251,23 @@ const MyJobs = () => {
   return (
     <div>
       <Navbar />
-      <div className="container py-8 pt-44"> {/* Increased padding-top */}
+      <div className="container py-8 pt-44">
         <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6">
             {user.user_metadata?.user_type === 'recruiter' && (
-              <TabsTrigger value="posted-jobs">Posted Jobs</TabsTrigger>
-            )}
-            {user.user_metadata?.user_type === 'recruiter' && (
-              <TabsTrigger value="received-applications">Received Applications</TabsTrigger>
+              <>
+                <TabsTrigger value="posted-jobs">Posted Jobs</TabsTrigger>
+                <TabsTrigger value="received-applications">Received Applications</TabsTrigger>
+              </>
             )}
             {user.user_metadata?.user_type !== 'recruiter' && (
               <TabsTrigger value="my-applications">My Applications</TabsTrigger>
             )}
           </TabsList>
 
+          {/* Posted Jobs Tab Content */}
           {user.user_metadata?.user_type === 'recruiter' && (
             <TabsContent value="posted-jobs">
               {isLoading ? (
@@ -328,6 +342,7 @@ const MyJobs = () => {
             </TabsContent>
           )}
 
+          {/* Received Applications Tab Content */}
           {user.user_metadata?.user_type === 'recruiter' && (
             <TabsContent value="received-applications" className="w-full">
               {isLoading ? (
@@ -343,7 +358,7 @@ const MyJobs = () => {
               ) : (
                 <div className="space-y-6">
                   {applications.map((application) => {
-                    const jobInfo = postedJobs.find(job => job.id === application.job_id);
+                    const jobInfo = postedJobs.find(job => job.id === application.job_id) || application.job;
                     if (!jobInfo) return null;
 
                     return (
@@ -426,6 +441,7 @@ const MyJobs = () => {
             </TabsContent>
           )}
 
+          {/* My Applications Tab Content (for freelancers) */}
           {user.user_metadata?.user_type !== 'recruiter' && (
             <TabsContent value="my-applications">
               {isLoading ? (
