@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -14,21 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SelectSingleEventHandler } from "react-day-picker";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, CalendarEvent } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-
-// Calendar event interface
-interface CalendarEvent {
-  id: string;
-  title: string;
-  description: string | null;
-  start_time: string;
-  end_time: string;
-  location: string | null;
-  is_all_day: boolean;
-  event_type: string;
-  user_id: string;
-}
 
 const Calendar = () => {
   const { toast } = useToast();

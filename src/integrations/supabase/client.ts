@@ -9,7 +9,9 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(
+// Since we can't directly modify the Database types, we need to extend them at runtime
+// This is a workaround to make TypeScript happy with our new tables
+const supabaseClient = createClient<Database>(
   SUPABASE_URL, 
   SUPABASE_PUBLISHABLE_KEY,
   {
@@ -28,3 +30,41 @@ export const supabase = createClient<Database>(
     }
   }
 );
+
+// Type assertion to make TypeScript accept our extended tables
+export const supabase = supabaseClient as unknown as ExtendedSupabaseClient;
+
+// Define interface for calendar events
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  start_time: string;
+  end_time: string;
+  location: string | null;
+  is_all_day: boolean;
+  event_type: string;
+  user_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Define interface for tasks
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  priority: 'low' | 'medium' | 'high';
+  status: 'todo' | 'in-progress' | 'completed';
+  project: string | null;
+  user_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Extend the PostgrestQueryBuilder to include our new tables
+type ExtendedSupabaseClient = typeof supabaseClient & {
+  from(table: 'calendar_events'): any;
+  from(table: 'tasks'): any;
+}

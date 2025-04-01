@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
@@ -7,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, Task } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   CheckCircle2, 
@@ -25,21 +24,6 @@ import {
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-
-// Task priority types
-type Priority = "low" | "medium" | "high";
-
-// Task interface
-interface Task {
-  id: string;
-  title: string;
-  description: string | null;
-  due_date: string | null;
-  priority: Priority;
-  status: "todo" | "in-progress" | "completed";
-  project: string | null;
-  user_id: string;
-}
 
 const Tasks = () => {
   const { toast } = useToast();
@@ -374,7 +358,7 @@ const Tasks = () => {
   };
   
   // Get priority badge
-  const getPriorityBadge = (priority: Priority) => {
+  const getPriorityBadge = (priority: 'low' | 'medium' | 'high') => {
     switch (priority) {
       case "high":
         return (
