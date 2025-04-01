@@ -14,7 +14,7 @@ const HeroSection = () => {
   }, []);
 
   return (
-    <section className="w-full py-20 md:py-32 lg:py-40 border-b border-white/5 flex items-center justify-center relative">
+    <section className="w-full py-12 md:py-20 lg:py-28 border-b border-white/5 flex items-center justify-center relative">
       {/* Gradient background */}
       <div className="absolute inset-0 bg-gradient-to-b from-black via-[#0e1217] to-black opacity-70 z-0"></div>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent opacity-70 z-0"></div>
