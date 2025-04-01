@@ -62,6 +62,7 @@ const ApplicationDetails = ({
     }
   };
 
+  // Updated function to use only supported Badge variants
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'accepted':
@@ -69,7 +70,7 @@ const ApplicationDetails = ({
       case 'rejected':
         return 'destructive';
       case 'interview':
-        return 'accent';
+        return 'secondary';
       case 'reviewing':
         return 'secondary';
       default:
