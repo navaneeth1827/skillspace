@@ -38,10 +38,9 @@ const Calendar = () => {
     isAllDay: false
   });
   
-  // Fetch events from database
   useEffect(() => {
     if (!user) return;
-    
+
     const fetchEvents = async () => {
       setLoading(true);
       try {
@@ -68,37 +67,65 @@ const Calendar = () => {
         setLoading(false);
       }
     };
-    
+
     fetchEvents();
-    
-    // Set up real-time subscription for events
+
+    const enableReplication = async () => {
+      try {
+        await supabase.rpc('supabase_realtime.enable_publication_for_table', {
+          table_name: 'calendar_events'
+        });
+      } catch (error) {
+        console.log('Note: Realtime may already be enabled for calendar_events');
+      }
+    };
+
+    enableReplication();
+
     const eventsChannel = supabase
-      .channel('calendar_events_changes')
+      .channel('calendar-events-realtime')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'calendar_events',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        // Handle different events
+        console.log('Real-time calendar event update received:', payload);
+        
         if (payload.eventType === 'INSERT') {
-          setEvents(prev => [...prev, payload.new as CalendarEvent]);
-        } else if (payload.eventType === 'UPDATE') {
-          setEvents(prev => prev.map(event => 
-            event.id === (payload.new as CalendarEvent).id ? (payload.new as CalendarEvent) : event
-          ));
-        } else if (payload.eventType === 'DELETE') {
-          setEvents(prev => prev.filter(event => event.id !== (payload.old as CalendarEvent).id));
+          const newEvent = payload.new as CalendarEvent;
+          console.log('Adding new event to state:', newEvent);
+          
+          setEvents(prev => {
+            if (prev.some(e => e.id === newEvent.id)) return prev;
+            return [...prev, newEvent];
+          });
+        } 
+        else if (payload.eventType === 'UPDATE') {
+          const updatedEvent = payload.new as CalendarEvent;
+          console.log('Updating event in state:', updatedEvent);
+          
+          setEvents(prev => 
+            prev.map(event => event.id === updatedEvent.id ? updatedEvent : event)
+          );
+        } 
+        else if (payload.eventType === 'DELETE') {
+          const deletedEvent = payload.old as CalendarEvent;
+          console.log('Removing deleted event from state:', deletedEvent);
+          
+          setEvents(prev => prev.filter(event => event.id !== deletedEvent.id));
         }
       })
-      .subscribe();
-      
+      .subscribe((status) => {
+        console.log('Calendar events subscription status:', status);
+      });
+    
     return () => {
+      console.log('Unsubscribing from calendar events channel');
       supabase.removeChannel(eventsChannel);
     };
   }, [user, toast]);
   
-  // Get events for the selected date
   const selectedDateEvents = events.filter(
     event => {
       const eventDate = new Date(event.start_time).toDateString();
@@ -106,7 +133,6 @@ const Calendar = () => {
     }
   );
   
-  // Get upcoming events (next 7 days)
   const upcomingEvents = events
     .filter(event => {
       const eventDate = new Date(event.start_time);
@@ -118,14 +144,12 @@ const Calendar = () => {
     })
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
   
-  // Handle date selection
   const handleDateSelect: SelectSingleEventHandler = (selectedDate) => {
     if (selectedDate) {
       setDate(selectedDate);
     }
   };
   
-  // Format date and time for display
   const formatEventTime = (timeString: string) => {
     try {
       const date = new Date(timeString);
@@ -135,7 +159,6 @@ const Calendar = () => {
     }
   };
   
-  // Format date for display
   const formatEventDate = (timeString: string) => {
     try {
       const date = new Date(timeString);
@@ -145,7 +168,6 @@ const Calendar = () => {
     }
   };
   
-  // Combine date and time into ISO string
   const combineDateAndTime = (dateStr: string, timeStr: string) => {
     try {
       const [hours, minutes] = timeStr.split(':').map(Number);
@@ -157,7 +179,6 @@ const Calendar = () => {
     }
   };
   
-  // Function to add a new event
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -207,7 +228,6 @@ const Calendar = () => {
     }
   };
   
-  // Function to edit an event
   const handleEditEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -251,7 +271,6 @@ const Calendar = () => {
     }
   };
   
-  // Function to delete an event
   const handleDeleteEvent = async (id: string) => {
     if (!user) return;
     
@@ -278,7 +297,6 @@ const Calendar = () => {
     }
   };
   
-  // Open edit event modal
   const openEditModal = (event: CalendarEvent) => {
     const startDate = new Date(event.start_time);
     const endDate = new Date(event.end_time);
@@ -298,7 +316,6 @@ const Calendar = () => {
     setIsEditingEvent(true);
   };
   
-  // Reset the event form
   const resetEventForm = () => {
     setNewEvent({
       title: "",
@@ -313,7 +330,6 @@ const Calendar = () => {
     });
   };
   
-  // Helper function to generate date marker dots for the calendar
   const getDateHasEvents = (day: Date) => {
     return events.some(event => 
       new Date(event.start_time).getDate() === day.getDate() && 
@@ -508,7 +524,6 @@ const Calendar = () => {
         </div>
       </main>
       
-      {/* Add Event Dialog */}
       {isAddingEvent && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
           <div className="glass-card p-6 max-w-md w-full">
@@ -655,7 +670,6 @@ const Calendar = () => {
         </div>
       )}
       
-      {/* Edit Event Dialog */}
       {isEditingEvent && currentEvent && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
           <div className="glass-card p-6 max-w-md w-full">
