@@ -16,13 +16,6 @@ export const NavbarExtensions = () => {
           <InboxIcon className="h-5 w-5" />
         </Button>
       </Link>
-      {isRecruiter && (
-        <Link to="/applications">
-          <Button variant="ghost" size="icon" className="relative" aria-label="Applications">
-            <BriefcaseIcon className="h-5 w-5" />
-          </Button>
-        </Link>
-      )}
       <Link to="/messages">
         <Button variant="ghost" size="icon" className="relative" aria-label="Messages">
           <MessageSquareIcon className="h-5 w-5" />

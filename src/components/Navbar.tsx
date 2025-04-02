@@ -14,7 +14,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { LogOut, MessageSquare, Calendar, Users, Home, Briefcase, UserPlus, LogIn, PlusCircle, CheckSquare } from "lucide-react";
+import { LogOut, MessageSquare, Calendar, Users, Home, Briefcase, UserPlus, LogIn, PlusCircle, CheckSquare, InboxIcon } from "lucide-react";
+import { NavbarExtensions } from "./NavbarExtensions";
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
@@ -78,14 +79,7 @@ const Navbar = () => {
           
           {user ? (
             <>
-              <Link to="/messages" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
-                <MessageSquare className="inline h-4 w-4 mr-1" />
-                Messages
-              </Link>
-              <Link to="/post-job" className="px-2 text-xs hover:text-primary transition-colors flex items-center">
-                <PlusCircle className="inline h-4 w-4 mr-1" />
-                Post Job
-              </Link>
+              <NavbarExtensions />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-8 w-8 p-0 rounded-full ml-2">
@@ -103,6 +97,9 @@ const Navbar = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/my-jobs">My Jobs</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/applications">Applications</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/post-job">Post a Job</Link>
@@ -175,6 +172,9 @@ const Navbar = () => {
                 <>
                   <Link to="/messages" className="block w-full px-4 py-2 text-sm hover:bg-white/5 hover:text-primary rounded-lg">
                     Messages
+                  </Link>
+                  <Link to="/applications" className="block w-full px-4 py-2 text-sm hover:bg-white/5 hover:text-primary rounded-lg">
+                    Applications
                   </Link>
                   <Link to="/post-job" className="block w-full px-4 py-2 text-sm hover:bg-white/5 hover:text-primary rounded-lg">
                     Post Job
