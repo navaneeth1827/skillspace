@@ -96,6 +96,7 @@ const Tasks = () => {
         table: 'tasks',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
+        console.log('Real-time task update received:', payload);
         // Handle different events
         if (payload.eventType === 'INSERT') {
           setTasks(prev => [payload.new as Task, ...prev]);
@@ -136,9 +137,12 @@ const Tasks = () => {
           setFilteredTasks(prev => prev.filter(task => task.id !== (payload.old as Task).id));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
       
     return () => {
+      console.log('Unsubscribing from tasks channel');
       supabase.removeChannel(tasksChannel);
     };
   }, [user, toast, filter]);

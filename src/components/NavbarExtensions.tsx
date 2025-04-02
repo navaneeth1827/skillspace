@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export const NavbarExtensions = () => {
   const { user } = useAuth();
-  const isRecruiter = user?.user_metadata?.user_type === 'recruiter';
 
   return (
     <div className="flex items-center gap-2">
