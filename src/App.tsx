@@ -17,6 +17,7 @@ import FindJob from "@/pages/FindJob";
 import SignIn from "@/pages/SignIn";
 import SignUp from "@/pages/SignUp";
 import Tasks from "@/pages/Tasks";
+import ReceivedApplications from "@/pages/ReceivedApplications";
 
 const router = createBrowserRouter([
   {
@@ -50,6 +51,10 @@ const router = createBrowserRouter([
   {
     path: "/my-jobs",
     element: <MyJobs />,
+  },
+  {
+    path: "/applications",
+    element: <ReceivedApplications />,
   },
   {
     path: "/messages",

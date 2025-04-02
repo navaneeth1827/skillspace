@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
@@ -252,7 +251,14 @@ const MyJobs = () => {
     <div>
       <Navbar />
       <div className="container py-8 pt-44">
-        <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">My Jobs</h1>
+          {user.user_metadata?.user_type === 'recruiter' && (
+            <Link to="/applications">
+              <Button variant="outline">View All Applications</Button>
+            </Link>
+          )}
+        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6">

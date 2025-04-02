@@ -69,3 +69,30 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
 }
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+  priority: 'low' | 'medium' | 'high';
+  status: 'todo' | 'in-progress' | 'completed';
+  project?: string;
+  user_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  start_time: string;
+  end_time: string;
+  location?: string;
+  is_all_day: boolean;
+  event_type: string;
+  user_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
