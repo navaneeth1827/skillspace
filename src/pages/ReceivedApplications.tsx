@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JobApplication } from "@/types/job";
 import ApplicationDetails from "@/components/ApplicationDetails";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ReceivedApplications = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ const ReceivedApplications = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [applicationType, setApplicationType] = useState<'received' | 'sent'>('received');
 
   useEffect(() => {
     if (!user) return;
@@ -27,44 +29,59 @@ const ReceivedApplications = () => {
     const fetchApplications = async () => {
       setIsLoading(true);
       try {
-        // Fetch applications for recruiter's jobs
-        const { data: jobsData } = await supabase
-          .from('jobs')
-          .select('id')
-          .eq('recruiter_id', user.id);
+        if (applicationType === 'received') {
+          // Fetch applications for recruiter's jobs
+          const { data: jobsData } = await supabase
+            .from('jobs')
+            .select('id')
+            .eq('recruiter_id', user.id);
 
-        if (jobsData && jobsData.length > 0) {
-          const jobIds = jobsData.map(job => job.id);
-          
-          const { data: applicationsData, error } = await supabase
+          if (jobsData && jobsData.length > 0) {
+            const jobIds = jobsData.map(job => job.id);
+            
+            const { data: applicationsData, error } = await supabase
+              .from('job_applications')
+              .select(`
+                *,
+                user_info:profiles!job_applications_user_id_fkey(full_name, avatar_url, title),
+                job:jobs(*)
+              `)
+              .in('job_id', jobIds)
+              .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            const processedApplications = applicationsData?.map(app => {
+              if (!app.user_info || 'error' in app.user_info) {
+                return {
+                  ...app,
+                  user_info: {
+                    full_name: 'Unknown User',
+                    avatar_url: '',
+                    title: 'No title information'
+                  }
+                };
+              }
+              return app;
+            }) || [];
+
+            setApplications(processedApplications as JobApplication[]);
+          } else {
+            setApplications([]);
+          }
+        } else {
+          // Fetch applications submitted by the current user
+          const { data: appliedApplications, error } = await supabase
             .from('job_applications')
             .select(`
               *,
-              user_info:profiles!job_applications_user_id_fkey(full_name, avatar_url, title),
               job:jobs(*)
             `)
-            .in('job_id', jobIds)
+            .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
           if (error) throw error;
-
-          const processedApplications = applicationsData?.map(app => {
-            if (!app.user_info || 'error' in app.user_info) {
-              return {
-                ...app,
-                user_info: {
-                  full_name: 'Unknown User',
-                  avatar_url: '',
-                  title: 'No title information'
-                }
-              };
-            }
-            return app;
-          }) || [];
-
-          setApplications(processedApplications as JobApplication[]);
-        } else {
-          setApplications([]);
+          setApplications(appliedApplications as JobApplication[]);
         }
       } catch (error) {
         console.error("Error fetching applications:", error);
@@ -96,7 +113,7 @@ const ReceivedApplications = () => {
     return () => {
       supabase.removeChannel(jobApplicationsChannel);
     };
-  }, [user, toast]);
+  }, [user, toast, applicationType]);
 
   const updateApplicationStatus = async (applicationId: string, newStatus: string) => {
     try {
@@ -151,21 +168,8 @@ const ReceivedApplications = () => {
       <div>
         <Navbar />
         <div className="container py-8">
-          <h1 className="text-2xl font-bold mb-6">Received Applications</h1>
+          <h1 className="text-2xl font-bold mb-6">Applications</h1>
           <p>Please sign in to view applications.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Only recruiters can access this page
-  if (user.user_metadata?.user_type !== 'recruiter') {
-    return (
-      <div>
-        <Navbar />
-        <div className="container py-8">
-          <h1 className="text-2xl font-bold mb-6">Received Applications</h1>
-          <p>This page is only available for recruiters.</p>
         </div>
       </div>
     );
@@ -175,101 +179,175 @@ const ReceivedApplications = () => {
     <div>
       <Navbar />
       <div className="container py-8 pt-24 max-w-6xl">
-        <h1 className="text-2xl font-bold mb-6">Received Applications</h1>
+        <h1 className="text-2xl font-bold mb-6">Applications</h1>
         
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          </div>
-        ) : applications.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center p-6">
-              <div className="text-center space-y-2">
-                <h3 className="text-xl font-semibold">No applications received</h3>
-                <p className="text-muted-foreground">When you post jobs and receive applications, they will appear here.</p>
-                <Button 
-                  onClick={() => navigate('/post-job')} 
-                  className="mt-4"
-                >
-                  Post a Job
-                </Button>
+        <Tabs defaultValue="received" onValueChange={(value) => setApplicationType(value as 'received' | 'sent')} className="mb-6">
+          <TabsList className="mb-4">
+            <TabsTrigger value="received">Received Applications</TabsTrigger>
+            <TabsTrigger value="sent">Sent Applications</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="received">
+            {isLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-6">
-            {applications.map((application) => (
-              <Card key={application.id} className="overflow-hidden">
-                <CardHeader className="bg-muted/30 pb-4">
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={application.user_info?.avatar_url} />
-                        <AvatarFallback>
-                          {application.user_info?.full_name?.charAt(0) || '?'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {application.user_info?.full_name}
-                        </CardTitle>
-                        <div className="text-sm text-muted-foreground">
-                          Applied for: {application.job?.title || 'Unknown Job'}
-                        </div>
-                      </div>
-                    </div>
-                    <Badge variant={application.status === 'pending' ? 'outline' : application.status === 'accepted' ? 'default' : 'secondary'}>
-                      {application.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="flex flex-wrap gap-4 mt-4 justify-end">
+            ) : applications.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center p-6">
+                  <div className="text-center space-y-2">
+                    <h3 className="text-xl font-semibold">No applications received</h3>
+                    <p className="text-muted-foreground">When you post jobs and receive applications, they will appear here.</p>
                     <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleViewDetails(application)}
+                      onClick={() => navigate('/post-job')} 
+                      className="mt-4"
                     >
-                      View Details
+                      Post a Job
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleViewProfile(application.user_id)}
-                    >
-                      View Profile
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleMessageApplicant(application.user_id)}
-                    >
-                      Message
-                    </Button>
-                    {application.status === 'pending' && (
-                      <>
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          onClick={() => updateApplicationStatus(application.id, 'accepted')}
-                        >
-                          Accept
-                        </Button>
-                        <Button 
-                          variant="secondary" 
-                          size="sm"
-                          onClick={() => updateApplicationStatus(application.id, 'rejected')}
-                        >
-                          Reject
-                        </Button>
-                      </>
-                    )}
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="space-y-6">
+                {applications.map((application) => (
+                  <Card key={application.id} className="overflow-hidden">
+                    <CardHeader className="bg-muted/30 pb-4">
+                      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={application.user_info?.avatar_url} />
+                            <AvatarFallback>
+                              {application.user_info?.full_name?.charAt(0) || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <CardTitle className="text-lg">
+                              {application.user_info?.full_name}
+                            </CardTitle>
+                            <div className="text-sm text-muted-foreground">
+                              Applied for: {application.job?.title || 'Unknown Job'}
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant={application.status === 'pending' ? 'outline' : application.status === 'accepted' ? 'default' : 'secondary'}>
+                          {application.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="flex flex-wrap gap-4 mt-4 justify-end">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleViewDetails(application)}
+                        >
+                          View Details
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewProfile(application.user_id)}
+                        >
+                          View Profile
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleMessageApplicant(application.user_id)}
+                        >
+                          Message
+                        </Button>
+                        {application.status === 'pending' && (
+                          <>
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              onClick={() => updateApplicationStatus(application.id, 'accepted')}
+                            >
+                              Accept
+                            </Button>
+                            <Button 
+                              variant="secondary" 
+                              size="sm"
+                              onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="sent">
+            {isLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              </div>
+            ) : applications.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center p-6">
+                  <div className="text-center space-y-2">
+                    <h3 className="text-xl font-semibold">No applications sent</h3>
+                    <p className="text-muted-foreground">When you apply for jobs, they will appear here.</p>
+                    <Button 
+                      onClick={() => navigate('/jobs')} 
+                      className="mt-4"
+                    >
+                      Find Jobs
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {applications.map((application) => (
+                  <Card key={application.id} className="overflow-hidden">
+                    <CardHeader className="bg-muted/30 pb-4">
+                      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                        <div>
+                          <CardTitle className="text-lg">
+                            {application.job?.title || 'Unknown Job'}
+                          </CardTitle>
+                          <div className="text-sm text-muted-foreground">
+                            {application.job?.company || 'Unknown Company'} - {application.job?.location || 'Unknown Location'}
+                          </div>
+                        </div>
+                        <Badge variant={application.status === 'pending' ? 'outline' : application.status === 'accepted' ? 'default' : 'secondary'}>
+                          {application.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="flex flex-wrap gap-4 mt-4 justify-end">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleViewDetails(application)}
+                        >
+                          View Details
+                        </Button>
+                        {application.job?.recruiter_id && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleMessageApplicant(application.job!.recruiter_id!)}
+                          >
+                            Message Recruiter
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {/* Application Details Dialog */}
         {selectedApplication && (
