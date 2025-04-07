@@ -1,326 +1,357 @@
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import ChatMessage from "@/components/ChatMessage";
-import { useChat } from "@/hooks/useChat";
-import { useProfileData } from "@/hooks/useProfileData";
-import Navbar from "@/components/Navbar";
-import { ProfileData } from "@/types/profile";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, Search, UserPlus } from "lucide-react";
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useChat, Message } from '@/hooks/useChat';
+import Navbar from '@/components/Navbar';
+import ChatMessage from '@/components/ChatMessage';
+import UserSearch from '@/components/UserSearch';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ProfileData } from '@/types/profile';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserPlus, Send, ChevronLeft, Search, MessageSquare } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const Messages = () => {
+  const { userId } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const profileData = useProfileData(user?.id);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
+
+  const [message, setMessage] = useState('');
   const [contacts, setContacts] = useState<ProfileData[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const { messages, sendMessage, loading } = useChat(selectedUser);
+  const [selectedContact, setSelectedContact] = useState<ProfileData | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [showContacts, setShowContacts] = useState(true);
   
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { messages, loading, sendMessage } = useChat(userId || null);
+
   useEffect(() => {
-    if (!user) return;
-    
-    const fetchContacts = async () => {
-      try {
-        // Get users who have exchanged messages with the current user
-        const { data: sentMessages, error: sentError } = await supabase
-          .from('chat_messages')
-          .select('receiver_id')
-          .eq('sender_id', user.id);
-          
-        const { data: receivedMessages, error: receivedError } = await supabase
-          .from('chat_messages')
-          .select('sender_id')
-          .eq('receiver_id', user.id);
-        
-        if (sentError || receivedError) {
-          console.error("Error fetching messages:", sentError || receivedError);
-          return;
-        }
-        
-        // Extract unique user IDs
-        const sentUserIds = sentMessages?.map(msg => msg.receiver_id) || [];
-        const receivedUserIds = receivedMessages?.map(msg => msg.sender_id) || [];
-        const uniqueUserIds = [...new Set([...sentUserIds, ...receivedUserIds])];
-        
-        // Fetch user profiles even if uniqueUserIds is empty
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('id', uniqueUserIds.length > 0 ? uniqueUserIds : ['00000000-0000-0000-0000-000000000000']);
-          
-        if (profilesError && uniqueUserIds.length > 0) {
-          console.error("Error fetching profiles:", profilesError);
-          return;
-        }
-        
-        setContacts(profiles || []);
-        
-        // Auto-select the first contact if none is selected and contacts exist
-        if (!selectedUser && profiles && profiles.length > 0) {
-          setSelectedUser(profiles[0].id);
-        }
-      } catch (error) {
-        console.error("Error in fetching contacts:", error);
+    // Check if we're on mobile
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setShowContacts(true);
+      } else if (userId) {
+        setShowContacts(false);
       }
     };
-    
-    fetchContacts();
-    
-    // Set up realtime subscription for new messages
-    const messagesChannel = supabase
-      .channel('messages-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `or(sender_id=eq.${user.id},receiver_id=eq.${user.id})`
-      }, (payload) => {
-        // When a new message is received, refresh contacts
-        fetchContacts();
-      })
-      .subscribe();
-      
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
     return () => {
-      supabase.removeChannel(messagesChannel);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [user, selectedUser]);
-  
-  const handleSendMessage = async () => {
-    if (!message.trim() || !selectedUser || !user) return;
-    
-    const result = await sendMessage(message);
-    if (result) {
-      // Message sent successfully
-      setMessage("");
+  }, [userId]);
+
+  useEffect(() => {
+    if (isMobileView && userId) {
+      setShowContacts(false);
     }
-  };
-  
-  const handleSearch = async () => {
-    if (!searchQuery.trim() || !user) return;
-    
-    setIsSearching(true);
-    try {
-      // Search for users by name
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .ilike('full_name', `%${searchQuery}%`)
-        .limit(10);
-        
-      if (error) throw error;
-      
-      // Filter out current user
-      const filteredResults = data?.filter(profile => profile.id !== user.id) || [];
-      setSearchResults(filteredResults);
-      
-    } catch (error) {
-      console.error("Error searching users:", error);
-      toast({
-        title: "Search failed",
-        description: "Could not complete the search. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  };
-  
-  const startNewConversation = (userId: string) => {
-    setSelectedUser(userId);
-    setSearchQuery("");
-    setSearchResults([]);
-    
-    // Check if this user is already in contacts
-    if (!contacts.some(contact => contact.id === userId)) {
-      // Fetch the user profile to add to contacts
-      supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-        .then(({ data, error }) => {
-          if (!error && data) {
-            setContacts(prev => [...prev, data]);
+  }, [userId, isMobileView]);
+
+  useEffect(() => {
+    // Fetch all users who have messaged with current user
+    const fetchContacts = async () => {
+      if (!user) return;
+
+      try {
+        // First, get all unique users who have communicated with the current user
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('sender_id, receiver_id')
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          // Extract unique user IDs
+          const contactIds = new Set<string>();
+          
+          data.forEach(msg => {
+            if (msg.sender_id === user.id) {
+              contactIds.add(msg.receiver_id);
+            } else {
+              contactIds.add(msg.sender_id);
+            }
+          });
+
+          // Skip if no contacts
+          if (contactIds.size === 0) {
+            return;
           }
+
+          // Fetch profile details for all contacts
+          const contactsData = await Promise.all(
+            Array.from(contactIds).map(async (id) => {
+              const { data } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', id)
+                .single();
+              
+              return data as ProfileData;
+            })
+          );
+
+          // Filter out null values
+          setContacts(contactsData.filter(Boolean));
+        }
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load contacts',
+          variant: 'destructive'
         });
+      }
+    };
+
+    fetchContacts();
+
+    // Set up real-time subscription for new messages to update contacts list
+    if (user) {
+      const channel = supabase
+        .channel('contacts_channel')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `or(sender_id=eq.${user.id},receiver_id=eq.${user.id})`
+        }, () => {
+          // Refresh contacts when a new message is received
+          fetchContacts();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user, toast]);
+
+  useEffect(() => {
+    // Fetch selected contact's profile
+    const fetchSelectedContact = async () => {
+      if (!userId || !user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        setSelectedContact(data as ProfileData);
+      } catch (error) {
+        console.error('Error fetching selected contact:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load contact information',
+          variant: 'destructive'
+        });
+      }
+    };
+
+    fetchSelectedContact();
+  }, [userId, user, toast]);
+
+  // Scroll to the bottom when new messages are added
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!userId || !message.trim()) return;
+
+    const sentMessage = await sendMessage(message.trim());
+    
+    if (sentMessage) {
+      setMessage('');
     }
   };
-  
-  const getUserInfo = (userId: string) => {
-    const contact = contacts.find(c => c.id === userId);
-    return {
-      id: contact?.id || '',
-      full_name: contact?.full_name || 'Unknown User',
-      title: contact?.title || '',
-      location: contact?.location || '',
-      bio: contact?.bio || '',
-      hourly_rate: contact?.hourly_rate || 0,
-      skills: contact?.skills || [],
-      avatar_url: contact?.avatar_url || '',
-      user_type: contact?.user_type || '',
-      company_name: contact?.company_name || '',
-      website: contact?.website || '',
-      created_at: contact?.created_at || '',
-      updated_at: contact?.updated_at || ''
-    };
-  };
-  
+
   if (!user) {
     return (
       <div>
         <Navbar />
-        <div className="container py-8">
+        <div className="container py-8 pt-44">
           <h1 className="text-2xl font-bold mb-6">Messages</h1>
           <p>Please sign in to view your messages.</p>
         </div>
       </div>
     );
   }
-  
+
   return (
     <div>
       <Navbar />
       <div className="container py-8 pt-44">
-        <h1 className="text-2xl font-bold mb-6">Messages</h1>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Messages</h1>
+          <Button onClick={() => setIsSearchOpen(true)} variant="outline" size="sm">
+            <UserPlus className="w-4 h-4 mr-2" />
+            New Message
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Contacts Sidebar */}
-          <Card className="md:col-span-1">
-            <CardContent className="p-4">
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Input
-                    placeholder="Search users..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                  <Button onClick={handleSearch} disabled={isSearching} size="icon">
-                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  </Button>
-                </div>
-                
-                {/* Search Results */}
-                {searchResults.length > 0 && (
-                  <div className="mb-4 border rounded-md p-2">
-                    <h3 className="font-semibold text-sm mb-2">Search Results</h3>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {searchResults.map((user) => (
-                        <div 
-                          key={user.id} 
-                          className="flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-secondary/10"
-                          onClick={() => startNewConversation(user.id)}
-                        >
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={user.avatar_url || ''} alt={user.full_name} />
-                            <AvatarFallback>{user.full_name?.charAt(0) || '?'}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{user.full_name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{user.title || user.user_type}</p>
-                          </div>
-                          <UserPlus className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      ))}
-                    </div>
+          {showContacts && (
+            <div className="col-span-1 border rounded-lg overflow-hidden shadow-sm">
+              <div className="bg-muted p-4">
+                <h2 className="font-medium">Contacts</h2>
+              </div>
+              <div className="p-2 h-[500px] overflow-y-auto">
+                {contacts.length === 0 && (
+                  <div className="text-center p-4 text-muted-foreground">
+                    <MessageSquare className="mx-auto h-8 w-8 mb-2" />
+                    <p>No conversations yet</p>
+                    <Button 
+                      variant="link" 
+                      onClick={() => setIsSearchOpen(true)}
+                      className="mt-2"
+                    >
+                      Start a new conversation
+                    </Button>
                   </div>
                 )}
+                {contacts.map(contact => (
+                  <Button
+                    key={contact.id}
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start mb-1",
+                      userId === contact.id && "bg-accent"
+                    )}
+                    onClick={() => {
+                      navigate(`/messages/${contact.id}`);
+                      if (isMobileView) {
+                        setShowContacts(false);
+                      }
+                    }}
+                  >
+                    <Avatar className="h-8 w-8 mr-2">
+                      <AvatarImage src={contact.avatar_url || undefined} alt={contact.full_name} />
+                      <AvatarFallback>
+                        {contact.full_name?.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="text-left truncate">
+                      <div>{contact.full_name}</div>
+                    </div>
+                  </Button>
+                ))}
               </div>
-              
-              <h2 className="font-semibold mb-4">Contacts</h2>
-              {contacts.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No contacts yet. Search for users to start a conversation.</p>
-              ) : (
-                <div className="space-y-2">
-                  {contacts.map((contact) => (
-                    <div 
-                      key={contact.id} 
-                      className={`flex items-center gap-3 p-2 rounded-md cursor-pointer ${selectedUser === contact.id ? 'bg-secondary/20' : 'hover:bg-secondary/10'}`}
-                      onClick={() => setSelectedUser(contact.id)}
+            </div>
+          )}
+
+          {/* Chat Area */}
+          <div className={`${showContacts && !isMobileView ? 'col-span-3' : 'col-span-4'}`}>
+            {userId ? (
+              <div className="border rounded-lg shadow-sm h-[600px] flex flex-col">
+                {/* Chat Header */}
+                <div className="border-b p-4 flex items-center">
+                  {isMobileView && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="mr-2"
+                      onClick={() => setShowContacts(true)}
                     >
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={contact.avatar_url || ''} alt={contact.full_name} />
-                        <AvatarFallback>{contact.full_name?.charAt(0) || '?'}</AvatarFallback>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {selectedContact && (
+                    <>
+                      <Avatar className="h-8 w-8 mr-2">
+                        <AvatarImage 
+                          src={selectedContact.avatar_url || undefined} 
+                          alt={selectedContact.full_name} 
+                        />
+                        <AvatarFallback>
+                          {selectedContact.full_name?.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{contact.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{contact.title || contact.user_type || 'No title'}</p>
+                        <div className="font-medium">{selectedContact.full_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {selectedContact.title || selectedContact.user_type}
+                        </div>
                       </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Messages */}
+                <div className="flex-grow p-4 overflow-y-auto">
+                  {loading ? (
+                    <div className="text-center p-4">Loading messages...</div>
+                  ) : messages.length === 0 ? (
+                    <div className="text-center p-4 text-muted-foreground">
+                      <p>No messages yet</p>
+                      <p className="text-sm">Send a message to start the conversation</p>
                     </div>
-                  ))}
+                  ) : (
+                    messages.map((msg: Message) => (
+                      <ChatMessage
+                        key={msg.id}
+                        message={msg}
+                        isOwnMessage={msg.sender_id === user.id}
+                      />
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Chat Area */}
-          <Card className="md:col-span-3">
-            <CardContent className="p-4">
-              {selectedUser ? (
-                <div className="flex flex-col h-[600px]">
-                  {/* Chat Header */}
-                  <div className="flex items-center gap-3 p-3 border-b">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={getUserInfo(selectedUser).avatar_url} alt={getUserInfo(selectedUser).full_name} />
-                      <AvatarFallback>{getUserInfo(selectedUser).full_name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{getUserInfo(selectedUser).full_name}</p>
-                      <p className="text-xs text-muted-foreground">{getUserInfo(selectedUser).title || getUserInfo(selectedUser).user_type}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Messages List */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {loading ? (
-                      <div className="flex justify-center items-center h-full">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : messages.length === 0 ? (
-                      <p className="text-center text-muted-foreground">No messages yet. Start the conversation!</p>
-                    ) : (
-                      messages.map((msg) => (
-                        <ChatMessage
-                          key={msg.id}
-                          content={msg.content}
-                          senderData={msg.sender_id === user.id ? null : getUserInfo(msg.sender_id)}
-                          timestamp={msg.created_at}
-                          isCurrentUser={msg.sender_id === user.id}
-                        />
-                      ))
-                    )}
-                  </div>
-                  
-                  {/* Message Input */}
-                  <div className="p-3 border-t flex gap-2">
-                    <Input
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Type your message..."
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    />
-                    <Button onClick={handleSendMessage} disabled={loading || !message.trim()}>Send</Button>
-                  </div>
+
+                {/* Message Input */}
+                <form onSubmit={handleSendMessage} className="border-t p-4 flex">
+                  <Input
+                    placeholder="Type a message..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="flex-grow mr-2"
+                  />
+                  <Button type="submit" disabled={!message.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </form>
+              </div>
+            ) : (
+              <div className="border rounded-lg h-[600px] flex items-center justify-center">
+                <div className="text-center p-4">
+                  <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-medium mb-2">Select a conversation</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Choose a contact from the sidebar or start a new conversation
+                  </p>
+                  <Button onClick={() => setIsSearchOpen(true)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    New Message
+                  </Button>
                 </div>
-              ) : (
-                <div className="h-[600px] flex items-center justify-center">
-                  <p className="text-muted-foreground">Select or search for a contact to start chatting</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* User Search Dialog */}
+      <UserSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
   );
 };

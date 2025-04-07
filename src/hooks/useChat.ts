@@ -97,7 +97,7 @@ export const useChat = (receiverId?: string | null) => {
       
       // Set up real-time subscription for new messages
       const channel = supabase
-        .channel('public:chat_messages')
+        .channel('chat_messages_channel')
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',

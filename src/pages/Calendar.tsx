@@ -1,816 +1,469 @@
-import { useState, useEffect } from "react";
+
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { format, parseISO, isToday, isSameMonth, addDays } from 'date-fns';
 import Navbar from "@/components/Navbar";
-import FooterSection from "@/components/FooterSection";
-import Button from "@/components/Button";
-import { Calendar as CalendarIcon, Clock, Plus, X, Trash2, Edit } from "lucide-react";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SelectSingleEventHandler } from "react-day-picker";
-import { supabase, CalendarEvent } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import {
+  Calendar as CalendarComponent,
+  CalendarProps,
+} from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useCalendarEvents } from '@/hooks/useCalendarEvents';
+import { CalendarEvent } from '@/integrations/supabase/client';
+import CalendarEventForm from '@/components/CalendarEventForm';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+
+interface CalendarDayProps extends React.HTMLAttributes<HTMLDivElement> {
+  date: Date;
+  events: CalendarEvent[];
+  onAddEvent?: () => void;
+}
+
+// Component for displaying events on a calendar day
+const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) => {
+  const dayEvents = events.filter(event => {
+    const startDate = parseISO(event.start_time);
+    return format(startDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
+  });
+
+  return (
+    <div
+      className={cn(
+        "h-full min-h-[100px] p-1 border border-border relative",
+        isToday(date) && "bg-accent/20",
+        props.className
+      )}
+    >
+      <div className="flex justify-between mb-2">
+        <span className={cn(
+          "text-sm font-medium",
+          isToday(date) && "text-primary"
+        )}>
+          {format(date, 'd')}
+        </span>
+        {onAddEvent && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-4 w-4"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddEvent();
+            }}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+      <div className="space-y-1">
+        {dayEvents.slice(0, 3).map(event => (
+          <div 
+            key={event.id} 
+            className={cn(
+              "text-xs p-1 rounded truncate",
+              event.event_type === 'meeting' && "bg-blue-500/20 text-blue-700",
+              event.event_type === 'personal' && "bg-green-500/20 text-green-700",
+              event.event_type === 'work' && "bg-purple-500/20 text-purple-700",
+              event.event_type === 'holiday' && "bg-red-500/20 text-red-700",
+              event.event_type === 'general' && "bg-gray-500/20 text-gray-700"
+            )}
+          >
+            {event.title}
+          </div>
+        ))}
+        {dayEvents.length > 3 && (
+          <div className="text-xs text-muted-foreground">
+            +{dayEvents.length - 3} more
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Calendar = () => {
-  const { toast } = useToast();
   const { user } = useAuth();
-  const [date, setDate] = useState<Date>(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [isAddingEvent, setIsAddingEvent] = useState(false);
-  const [isEditingEvent, setIsEditingEvent] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [currentEvent, setCurrentEvent] = useState<CalendarEvent | null>(null);
-  
-  const [newEvent, setNewEvent] = useState({
-    title: "",
-    description: "",
-    startDate: format(new Date(), "yyyy-MM-dd"),
-    startTime: "09:00",
-    endDate: format(new Date(), "yyyy-MM-dd"),
-    endTime: "10:00",
-    location: "",
-    eventType: "meeting",
-    isAllDay: false
-  });
-  
-  useEffect(() => {
-    if (!user) return;
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [selected, setSelected] = useState<Date | undefined>(new Date());
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<CalendarEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const { events, loading, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
 
-    const fetchEvents = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('calendar_events')
-          .select('*')
-          .eq('user_id', user.id);
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          setEvents(data as CalendarEvent[]);
-        }
-      } catch (error) {
-        console.error('Error fetching events:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load events. Please try again.",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
+  // Custom day renderer for the calendar
+  const customDayRenderer: CalendarProps["components"] = {
+    Day: (props) => {
+      // Skip rendering for dates outside the current month
+      if (!isSameMonth(props.date, currentDate)) {
+        return null;
       }
-    };
-
-    fetchEvents();
-
-    const eventsChannel = supabase
-      .channel('calendar-events-realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'calendar_events',
-        filter: `user_id=eq.${user.id}`
-      }, (payload) => {
-        console.log('Real-time calendar event update received:', payload);
-        
-        if (payload.eventType === 'INSERT') {
-          const newEvent = payload.new as CalendarEvent;
-          console.log('Adding new event to state:', newEvent);
-          
-          setEvents(prev => {
-            if (prev.some(e => e.id === newEvent.id)) return prev;
-            return [...prev, newEvent];
-          });
-        } 
-        else if (payload.eventType === 'UPDATE') {
-          const updatedEvent = payload.new as CalendarEvent;
-          console.log('Updating event in state:', updatedEvent);
-          
-          setEvents(prev => 
-            prev.map(event => event.id === updatedEvent.id ? updatedEvent : event)
-          );
-        } 
-        else if (payload.eventType === 'DELETE') {
-          const deletedEvent = payload.old as CalendarEvent;
-          console.log('Removing deleted event from state:', deletedEvent);
-          
-          setEvents(prev => prev.filter(event => event.id !== deletedEvent.id));
-        }
-      })
-      .subscribe((status) => {
-        console.log('Calendar events subscription status:', status);
-      });
-    
-    return () => {
-      console.log('Unsubscribing from calendar events channel');
-      supabase.removeChannel(eventsChannel);
-    };
-  }, [user, toast]);
-  
-  const selectedDateEvents = events.filter(
-    event => {
-      const eventDate = new Date(event.start_time).toDateString();
-      return eventDate === date.toDateString();
-    }
-  );
-  
-  const upcomingEvents = events
-    .filter(event => {
-      const eventDate = new Date(event.start_time);
-      const today = new Date();
-      const nextWeek = new Date(today);
-      nextWeek.setDate(today.getDate() + 7);
       
-      return eventDate >= today && eventDate <= nextWeek;
-    })
-    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-  
-  const handleDateSelect: SelectSingleEventHandler = (selectedDate) => {
-    if (selectedDate) {
-      setDate(selectedDate);
+      return (
+        <CalendarDay
+          date={props.date}
+          events={events}
+          onAddEvent={() => {
+            setSelected(props.date);
+            setDialogOpen(true);
+          }}
+          {...props}
+        />
+      );
     }
   };
-  
-  const formatEventTime = (timeString: string) => {
-    try {
-      const date = new Date(timeString);
-      return format(date, 'h:mm a');
-    } catch (e) {
-      return timeString;
-    }
-  };
-  
-  const formatEventDate = (timeString: string) => {
-    try {
-      const date = new Date(timeString);
-      return format(date, 'MMM d, yyyy');
-    } catch (e) {
-      return timeString;
-    }
-  };
-  
-  const combineDateAndTime = (dateStr: string, timeStr: string) => {
-    try {
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      const date = new Date(dateStr);
-      date.setHours(hours, minutes, 0, 0);
-      return date.toISOString();
-    } catch (e) {
-      return new Date().toISOString();
-    }
-  };
-  
-  const handleAddEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
+
+  const handleDayClick = (date: Date) => {
+    setSelected(date);
     
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to add events."
-      });
-      return;
-    }
+    // Filter events for the selected day
+    const dayEvents = events.filter(event => {
+      const startDate = parseISO(event.start_time);
+      return format(startDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
+    });
     
+    setSelectedDayEvents(dayEvents);
+  };
+
+  const handleSubmit = async (values: any) => {
     try {
-      const startDateTime = combineDateAndTime(newEvent.startDate, newEvent.startTime);
-      const endDateTime = combineDateAndTime(newEvent.endDate, newEvent.endTime);
+      setIsSubmitting(true);
       
-      const eventToAdd = {
-        title: newEvent.title,
-        description: newEvent.description || null,
+      // Combine date and time
+      const startDateTime = values.isAllDay 
+        ? new Date(values.startDate).toISOString()
+        : new Date(
+            values.startDate.getFullYear(),
+            values.startDate.getMonth(),
+            values.startDate.getDate(),
+            ...(values.startTime ? values.startTime.split(':').map(Number) : [0, 0])
+          ).toISOString();
+      
+      const endDateTime = values.isAllDay 
+        ? addDays(new Date(values.endDate), 1).toISOString() // End of the day
+        : new Date(
+            values.endDate.getFullYear(),
+            values.endDate.getMonth(),
+            values.endDate.getDate(),
+            ...(values.endTime ? values.endTime.split(':').map(Number) : [0, 0])
+          ).toISOString();
+      
+      const eventData = {
+        title: values.title,
+        description: values.description || null,
         start_time: startDateTime,
         end_time: endDateTime,
-        location: newEvent.location || null,
-        is_all_day: newEvent.isAllDay,
-        event_type: newEvent.eventType,
-        user_id: user.id
+        location: values.location || null,
+        is_all_day: values.isAllDay,
+        event_type: values.eventType,
       };
       
-      const { error } = await supabase
-        .from('calendar_events')
-        .insert(eventToAdd);
+      if (selectedEvent) {
+        await updateEvent(selectedEvent.id, eventData);
+        toast({
+          title: "Event updated",
+          description: "Calendar event has been updated successfully",
+        });
+      } else {
+        await createEvent(eventData);
+        toast({
+          title: "Event created",
+          description: "New calendar event has been created",
+        });
+      }
       
-      if (error) throw error;
-      
-      setIsAddingEvent(false);
-      resetEventForm();
-      
-      toast({
-        title: "Event added",
-        description: "Your event has been successfully added to the calendar."
-      });
+      setDialogOpen(false);
+      setSelectedEvent(null);
     } catch (error) {
-      console.error('Error adding event:', error);
+      console.error('Error saving event:', error);
       toast({
         title: "Error",
-        description: "Failed to add event. Please try again.",
-        variant: "destructive"
+        description: "Failed to save calendar event",
+        variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
-  
-  const handleEditEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
+
+  const handleEditEvent = (event: CalendarEvent) => {
+    setSelectedEvent(event);
     
-    if (!user || !currentEvent) return;
+    // Parse dates from ISO strings
+    const startDate = parseISO(event.start_time);
+    const endDate = parseISO(event.end_time);
     
-    try {
-      const startDateTime = combineDateAndTime(newEvent.startDate, newEvent.startTime);
-      const endDateTime = combineDateAndTime(newEvent.endDate, newEvent.endTime);
-      
-      const { error } = await supabase
-        .from('calendar_events')
-        .update({
-          title: newEvent.title,
-          description: newEvent.description || null,
-          start_time: startDateTime,
-          end_time: endDateTime,
-          location: newEvent.location || null,
-          is_all_day: newEvent.isAllDay,
-          event_type: newEvent.eventType
-        })
-        .eq('id', currentEvent.id)
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      setIsEditingEvent(false);
-      setCurrentEvent(null);
-      resetEventForm();
-      
-      toast({
-        title: "Event updated",
-        description: "Your event has been updated successfully."
-      });
-    } catch (error) {
-      console.error('Error updating event:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update event. Please try again.",
-        variant: "destructive"
-      });
-    }
+    // Set default form values with the event data
+    const defaultValues = {
+      title: event.title,
+      description: event.description || '',
+      startDate: startDate,
+      startTime: event.is_all_day ? undefined : format(startDate, 'HH:mm'),
+      endDate: endDate,
+      endTime: event.is_all_day ? undefined : format(endDate, 'HH:mm'),
+      location: event.location || '',
+      isAllDay: event.is_all_day,
+      eventType: event.event_type,
+    };
+    
+    setDialogOpen(true);
   };
-  
-  const handleDeleteEvent = async (id: string) => {
-    if (!user) return;
-    
-    try {
-      const { error } = await supabase
-        .from('calendar_events')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (confirm('Are you sure you want to delete this event?')) {
+      await deleteEvent(eventId);
       toast({
         title: "Event deleted",
-        description: "The event has been removed from your calendar."
-      });
-    } catch (error) {
-      console.error('Error deleting event:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete event. Please try again.",
-        variant: "destructive"
+        description: "Calendar event has been deleted",
       });
     }
-  };
-  
-  const openEditModal = (event: CalendarEvent) => {
-    const startDate = new Date(event.start_time);
-    const endDate = new Date(event.end_time);
-    
-    setCurrentEvent(event);
-    setNewEvent({
-      title: event.title,
-      description: event.description || "",
-      startDate: format(startDate, "yyyy-MM-dd"),
-      startTime: format(startDate, "HH:mm"),
-      endDate: format(endDate, "yyyy-MM-dd"),
-      endTime: format(endDate, "HH:mm"),
-      location: event.location || "",
-      eventType: event.event_type,
-      isAllDay: event.is_all_day
-    });
-    setIsEditingEvent(true);
-  };
-  
-  const resetEventForm = () => {
-    setNewEvent({
-      title: "",
-      description: "",
-      startDate: format(new Date(), "yyyy-MM-dd"),
-      startTime: "09:00",
-      endDate: format(new Date(), "yyyy-MM-dd"),
-      endTime: "10:00",
-      location: "",
-      eventType: "meeting",
-      isAllDay: false
-    });
-  };
-  
-  const getDateHasEvents = (day: Date) => {
-    return events.some(event => 
-      new Date(event.start_time).getDate() === day.getDate() && 
-      new Date(event.start_time).getMonth() === day.getMonth() && 
-      new Date(event.start_time).getFullYear() === day.getFullYear()
-    );
   };
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div>
         <Navbar />
-        <main className="flex-1 py-8">
-          <div className="container mx-auto px-4 md:px-6">
-            <h1 className="text-3xl font-bold mb-4">Calendar</h1>
-            <p>Please sign in to view your calendar.</p>
-          </div>
-        </main>
-        <FooterSection />
+        <div className="container py-8 pt-44">
+          <h1 className="text-2xl font-bold mb-6">Calendar</h1>
+          <p>Please sign in to view your calendar.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div>
       <Navbar />
-      <main className="flex-1 py-8">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="mb-8 flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold">Calendar</h1>
-              <p className="text-white/70">Manage your schedule and deadlines</p>
-            </div>
-            <Button onClick={() => setIsAddingEvent(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Event
-            </Button>
-          </div>
-          
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin h-8 w-8 border-2 border-purple-500 rounded-full border-t-transparent mx-auto mb-4"></div>
-              <p>Loading your calendar...</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 glass-card p-6">
-                <div className="mb-6">
-                  <CalendarComponent
-                    mode="single"
-                    selected={date}
-                    onSelect={handleDateSelect}
-                    className="p-3 pointer-events-auto rounded-md border border-white/10"
-                    modifiers={{
-                      booked: (day) => getDateHasEvents(day)
+      <div className="container py-8 pt-44">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Calendar</h1>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) {
+              setSelectedEvent(null);
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="default">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Event
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedEvent ? "Edit Event" : "Add New Event"}
+                </DialogTitle>
+              </DialogHeader>
+              <CalendarEventForm
+                onSubmit={handleSubmit}
+                isLoading={isSubmitting}
+                defaultValues={selectedEvent ? {
+                  title: selectedEvent.title,
+                  description: selectedEvent.description || '',
+                  startDate: parseISO(selectedEvent.start_time),
+                  startTime: !selectedEvent.is_all_day 
+                    ? format(parseISO(selectedEvent.start_time), 'HH:mm') 
+                    : undefined,
+                  endDate: parseISO(selectedEvent.end_time),
+                  endTime: !selectedEvent.is_all_day 
+                    ? format(parseISO(selectedEvent.end_time), 'HH:mm') 
+                    : undefined,
+                  location: selectedEvent.location || '',
+                  isAllDay: selectedEvent.is_all_day,
+                  eventType: selectedEvent.event_type,
+                } : {
+                  startDate: selected,
+                  endDate: selected,
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="md:col-span-3">
+            <CardHeader>
+              <CardTitle className="flex justify-between items-center">
+                <span>{format(currentDate, 'MMMM yyyy')}</span>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const prevMonth = new Date(currentDate);
+                      prevMonth.setMonth(prevMonth.getMonth() - 1);
+                      setCurrentDate(prevMonth);
                     }}
-                    modifiersStyles={{
-                      booked: {
-                        fontWeight: "bold",
-                        borderWidth: "2px",
-                        backgroundColor: "rgba(155, 135, 245, 0.15)",
-                        borderColor: "rgba(155, 135, 245, 0.5)"
-                      }
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      setCurrentDate(today);
+                      setSelected(today);
                     }}
-                  />
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const nextMonth = new Date(currentDate);
+                      nextMonth.setMonth(nextMonth.getMonth() + 1);
+                      setCurrentDate(nextMonth);
+                    }}
+                  >
+                    Next
+                  </Button>
                 </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-medium">
-                      Events for {format(date, "MMMM d, yyyy")}
-                    </h2>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center items-center h-[600px]">
+                  Loading calendar...
+                </div>
+              ) : (
+                <CalendarComponent
+                  mode="single"
+                  selected={selected}
+                  onSelect={handleDayClick}
+                  month={currentDate}
+                  onMonthChange={setCurrentDate}
+                  components={customDayRenderer}
+                  className="w-full h-[600px]"
+                />
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CalendarIcon className="mr-2 h-5 w-5" />
+                {selected ? format(selected, 'MMMM d, yyyy') : 'Events'}
+              </CardTitle>
+              <CardDescription>
+                {selected && (
+                  <span>
+                    {selectedDayEvents.length} event{selectedDayEvents.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {!selected ? (
+                  <div className="text-center text-muted-foreground">
+                    Select a day to see events
                   </div>
-                  
-                  {selectedDateEvents.length > 0 ? (
-                    <div className="space-y-4">
-                      {selectedDateEvents.map(event => (
-                        <div key={event.id} className="glass-card p-4 flex justify-between items-center">
-                          <div>
-                            <div className="flex items-center">
-                              <Badge className={
-                                event.event_type === "meeting" 
-                                  ? "bg-purple-400/20 text-purple-400" 
-                                  : "bg-indigo-400/20 text-indigo-400"
-                              }>
-                                {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
-                              </Badge>
-                              <span className="ml-3 text-sm text-white/60">
-                                {event.is_all_day ? 'All day' : 
-                                  `${formatEventTime(event.start_time)} - ${formatEventTime(event.end_time)}`}
-                              </span>
-                            </div>
-                            <h3 className="font-medium mt-1">{event.title}</h3>
-                            {event.description && (
-                              <p className="text-sm text-white/70">{event.description}</p>
-                            )}
-                            {event.location && (
-                              <p className="text-sm text-white/70 mt-1">
-                                Location: {event.location}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex space-x-2">
-                            <button 
-                              onClick={() => openEditModal(event)}
-                              className="text-white/50 hover:text-white"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteEvent(event.id)}
-                              className="text-white/50 hover:text-red-400"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 glass-card">
-                      <CalendarIcon className="mx-auto h-12 w-12 text-white/30 mb-3" />
-                      <h3 className="text-lg font-medium">No events scheduled</h3>
-                      <p className="text-white/60 mt-1 mb-4">
-                        There are no events scheduled for this date.
-                      </p>
-                      <Button size="sm" onClick={() => setIsAddingEvent(true)}>
+                ) : selectedDayEvents.length === 0 ? (
+                  <div className="text-center text-muted-foreground">
+                    No events for this day
+                    <div className="mt-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setDialogOpen(true)}
+                      >
                         <Plus className="mr-2 h-4 w-4" />
                         Add Event
                       </Button>
                     </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="col-span-1">
-                <div className="glass-card p-6 mb-6">
-                  <h2 className="text-xl font-medium mb-4">Upcoming Events</h2>
-                  {upcomingEvents.length > 0 ? (
-                    <div className="space-y-4">
-                      {upcomingEvents.map(event => (
-                        <div key={event.id} className="flex items-start space-x-3 pb-4 border-b border-white/10 last:border-0 last:pb-0">
-                          <div className="flex-shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-md bg-purple-900/50">
-                            <span className="text-sm font-medium">{format(new Date(event.start_time), "MMM")}</span>
-                            <span className="text-lg font-bold">{format(new Date(event.start_time), "d")}</span>
-                          </div>
-                          <div>
-                            <h3 className="font-medium">{event.title}</h3>
-                            <div className="flex items-center text-sm text-white/60 mt-1">
-                              <Clock size={12} className="mr-1" />
-                              <span>
-                                {event.is_all_day ? 'All day' : formatEventTime(event.start_time)}
-                              </span>
-                            </div>
-                          </div>
+                  </div>
+                ) : (
+                  selectedDayEvents.map(event => (
+                    <Card key={event.id} className="overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-1",
+                          event.event_type === 'meeting' && "bg-blue-500",
+                          event.event_type === 'personal' && "bg-green-500",
+                          event.event_type === 'work' && "bg-purple-500",
+                          event.event_type === 'holiday' && "bg-red-500",
+                          event.event_type === 'general' && "bg-gray-500"
+                        )}
+                      />
+                      <CardContent className="p-3">
+                        <div className="font-medium">
+                          {event.title}
+                          <Badge 
+                            variant="outline" 
+                            className="ml-2 text-xs"
+                          >
+                            {event.event_type}
+                          </Badge>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-white/60 text-center py-4">
-                      No upcoming events in the next 7 days.
-                    </p>
-                  )}
-                </div>
-                
-                <div className="glass-card p-6">
-                  <h2 className="text-xl font-medium mb-4">Event Types</h2>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center p-3 rounded-md bg-purple-400/10">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-purple-400 mr-3"></div>
-                        <span>Meetings</span>
-                      </div>
-                      <Badge className="bg-purple-400/20 text-purple-400">
-                        {events.filter(e => e.event_type === "meeting").length}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 rounded-md bg-indigo-400/10">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-indigo-400 mr-3"></div>
-                        <span>Deadlines</span>
-                      </div>
-                      <Badge className="bg-indigo-400/20 text-indigo-400">
-                        {events.filter(e => e.event_type === "deadline").length}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
+                        
+                        {!event.is_all_day && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {format(parseISO(event.start_time), 'h:mm a')} - {format(parseISO(event.end_time), 'h:mm a')}
+                          </div>
+                        )}
+                        
+                        {event.location && (
+                          <div className="text-xs mt-1">
+                            📍 {event.location}
+                          </div>
+                        )}
+                        
+                        {event.description && (
+                          <div className="text-sm mt-2 line-clamp-2">
+                            {event.description}
+                          </div>
+                        )}
+                        
+                        <div className="mt-2 flex justify-end space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleEditEvent(event)}
+                          >
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => handleDeleteEvent(event.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </div>
-            </div>
-          )}
+            </CardContent>
+          </Card>
         </div>
-      </main>
-      
-      {isAddingEvent && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="glass-card p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-medium">Add New Event</h2>
-              <button 
-                onClick={() => setIsAddingEvent(false)}
-                className="text-white/50 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddEvent}>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Event Title</label>
-                  <Input
-                    value={newEvent.title}
-                    onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-                    placeholder="Enter event title"
-                    className="mt-1"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Description (Optional)</label>
-                  <Textarea
-                    value={newEvent.description}
-                    onChange={e => setNewEvent({...newEvent, description: e.target.value})}
-                    placeholder="Enter event description"
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Location (Optional)</label>
-                  <Input
-                    value={newEvent.location}
-                    onChange={e => setNewEvent({...newEvent, location: e.target.value})}
-                    placeholder="Enter location"
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isAllDay"
-                    checked={newEvent.isAllDay}
-                    onChange={e => setNewEvent({...newEvent, isAllDay: e.target.checked})}
-                    className="mr-1"
-                  />
-                  <label htmlFor="isAllDay" className="text-sm font-medium">All-day event</label>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Start Date</label>
-                    <Input
-                      type="date"
-                      value={newEvent.startDate}
-                      onChange={e => setNewEvent({...newEvent, startDate: e.target.value})}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  {!newEvent.isAllDay && (
-                    <div>
-                      <label className="text-sm font-medium">Start Time</label>
-                      <Input
-                        type="time"
-                        value={newEvent.startTime}
-                        onChange={e => setNewEvent({...newEvent, startTime: e.target.value})}
-                        className="mt-1"
-                        required
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">End Date</label>
-                    <Input
-                      type="date"
-                      value={newEvent.endDate}
-                      onChange={e => setNewEvent({...newEvent, endDate: e.target.value})}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  {!newEvent.isAllDay && (
-                    <div>
-                      <label className="text-sm font-medium">End Time</label>
-                      <Input
-                        type="time"
-                        value={newEvent.endTime}
-                        onChange={e => setNewEvent({...newEvent, endTime: e.target.value})}
-                        className="mt-1"
-                        required
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Event Type</label>
-                  <Tabs defaultValue={newEvent.eventType} className="mt-1">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger 
-                        value="meeting"
-                        onClick={() => setNewEvent({...newEvent, eventType: "meeting"})}
-                      >
-                        Meeting
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="deadline"
-                        onClick={() => setNewEvent({...newEvent, eventType: "deadline"})}
-                      >
-                        Deadline
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-                
-                <div className="pt-2 flex gap-3">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => setIsAddingEvent(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="flex-1">
-                    Add Event
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      
-      {isEditingEvent && currentEvent && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="glass-card p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-medium">Edit Event</h2>
-              <button 
-                onClick={() => {
-                  setIsEditingEvent(false);
-                  setCurrentEvent(null);
-                }}
-                className="text-white/50 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleEditEvent}>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Event Title</label>
-                  <Input
-                    value={newEvent.title}
-                    onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-                    placeholder="Enter event title"
-                    className="mt-1"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Description (Optional)</label>
-                  <Textarea
-                    value={newEvent.description}
-                    onChange={e => setNewEvent({...newEvent, description: e.target.value})}
-                    placeholder="Enter event description"
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Location (Optional)</label>
-                  <Input
-                    value={newEvent.location}
-                    onChange={e => setNewEvent({...newEvent, location: e.target.value})}
-                    placeholder="Enter location"
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isAllDay"
-                    checked={newEvent.isAllDay}
-                    onChange={e => setNewEvent({...newEvent, isAllDay: e.target.checked})}
-                    className="mr-1"
-                  />
-                  <label htmlFor="isAllDay" className="text-sm font-medium">All-day event</label>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Start Date</label>
-                    <Input
-                      type="date"
-                      value={newEvent.startDate}
-                      onChange={e => setNewEvent({...newEvent, startDate: e.target.value})}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  {!newEvent.isAllDay && (
-                    <div>
-                      <label className="text-sm font-medium">Start Time</label>
-                      <Input
-                        type="time"
-                        value={newEvent.startTime}
-                        onChange={e => setNewEvent({...newEvent, startTime: e.target.value})}
-                        className="mt-1"
-                        required
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">End Date</label>
-                    <Input
-                      type="date"
-                      value={newEvent.endDate}
-                      onChange={e => setNewEvent({...newEvent, endDate: e.target.value})}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  {!newEvent.isAllDay && (
-                    <div>
-                      <label className="text-sm font-medium">End Time</label>
-                      <Input
-                        type="time"
-                        value={newEvent.endTime}
-                        onChange={e => setNewEvent({...newEvent, endTime: e.target.value})}
-                        className="mt-1"
-                        required
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Event Type</label>
-                  <Tabs value={newEvent.eventType} className="mt-1">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger 
-                        value="meeting"
-                        onClick={() => setNewEvent({...newEvent, eventType: "meeting"})}
-                      >
-                        Meeting
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="deadline"
-                        onClick={() => setNewEvent({...newEvent, eventType: "deadline"})}
-                      >
-                        Deadline
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-                
-                <div className="pt-2 flex gap-3">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => {
-                      setIsEditingEvent(false);
-                      setCurrentEvent(null);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="flex-1">
-                    Save Changes
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      
-      <FooterSection />
+      </div>
     </div>
   );
 };

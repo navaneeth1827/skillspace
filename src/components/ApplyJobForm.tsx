@@ -7,12 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, MessageSquare } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Job } from '@/types/job';
+import ChatButton from '@/components/ChatButton';
 
 interface ApplyJobFormProps {
   job: Job;
@@ -118,12 +119,17 @@ const ApplyJobForm = ({ job, onSuccess, onCancel }: ApplyJobFormProps) => {
         </Popover>
       </div>
       
-      <div className="flex justify-end space-x-2">
+      <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+        {job.recruiter_id && (
+          <ChatButton userId={job.recruiter_id} buttonText="Message Recruiter" />
+        )}
+        
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
         )}
+        
         <Button type="submit" disabled={isLoading || !coverLetter.trim()}>
           {isLoading ? "Submitting..." : "Submit Application"}
         </Button>

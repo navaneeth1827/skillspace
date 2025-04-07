@@ -5,34 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase, Task } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Navbar from "@/components/Navbar";
-import { CalendarIcon, CheckCheck, ListChecks, LucideIcon, Plus, Search, Timer, User2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from '@/components/ui/badge';
+} from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -41,102 +21,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
-import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+} from "@/components/ui/dialog";
 import * as z from "zod";
-
-interface TaskPriority {
-  value: "low" | "medium" | "high"
-  label: string
-}
-
-interface TaskStatus {
-  value: "todo" | "in-progress" | "completed"
-  label: string
-}
-
-const priorityOptions: TaskPriority[] = [
-  {
-    value: "low",
-    label: "Low",
-  },
-  {
-    value: "medium",
-    label: "Medium",
-  },
-  {
-    value: "high",
-    label: "High",
-  },
-]
-
-const statusOptions: TaskStatus[] = [
-  {
-    value: "todo",
-    label: "Todo",
-  },
-  {
-    value: "in-progress",
-    label: "In Progress",
-  },
-  {
-    value: "completed",
-    label: "Completed",
-  },
-]
-
-const filterOptions = [
-  {
-    label: "All",
-    value: "all",
-    icon: ListChecks,
-  },
-  {
-    label: "Todo",
-    value: "todo",
-    icon: Timer,
-  },
-  {
-    label: "In Progress",
-    value: "in-progress",
-    icon: CalendarIcon,
-  },
-  {
-    label: "Completed",
-    value: "completed",
-    icon: CheckCheck,
-  },
-  {
-    label: "High Priority",
-    value: "high",
-    icon: User2,
-  },
-]
+import TaskForm from '@/components/TaskForm';
+import TaskList from '@/components/TaskList';
+import TaskFilters from '@/components/TaskFilters';
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -147,7 +36,9 @@ const formSchema = z.object({
   priority: z.enum(["low", "medium", "high"]).default("low"),
   status: z.enum(["todo", "in-progress", "completed"]).default("todo"),
   project: z.string().optional(),
-})
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 const Tasks = () => {
   const { user } = useAuth();
@@ -158,22 +49,10 @@ const Tasks = () => {
   const [search, setSearch] = useState<string>("");
   const [filter, setFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState<Date | undefined>(new Date());
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      dueDate: date,
-      priority: "low",
-      status: "todo",
-      project: "",
-    },
-  })
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: FormValues) => {
     if (!user) {
       toast({
         title: 'Authentication required',
@@ -184,7 +63,7 @@ const Tasks = () => {
     }
 
     try {
-      setIsLoading(true);
+      setIsSubmitting(true);
       
       // Convert date to ISO string if it exists
       const dueDate = values.dueDate ? values.dueDate.toISOString() : null;
@@ -207,20 +86,14 @@ const Tasks = () => {
         throw error;
       }
 
-      // Manually add the new task to the state since we might miss the realtime event
-      setTasks(prevTasks => {
-        // Check if task already exists in the array
-        if (prevTasks.some(t => t.id === data.id)) {
-          return prevTasks;
-        }
-        return [data as Task, ...prevTasks];
-      });
+      // Manually add the new task to the state for immediate UI update
+      setTasks(prevTasks => [data as Task, ...prevTasks]);
 
       toast({
         title: 'Task created',
         description: 'Your task has been created successfully'
       });
-      form.reset();
+      
       setOpen(false);
     } catch (error) {
       console.error('Error creating task:', error);
@@ -230,7 +103,7 @@ const Tasks = () => {
         variant: 'destructive'
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -265,8 +138,9 @@ const Tasks = () => {
 
     fetchTasks();
 
-    const tasksChannel = supabase
-      .channel('tasks-realtime')
+    // Set up real-time subscription for task changes
+    const channel = supabase
+      .channel('tasks-channel')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -277,9 +151,8 @@ const Tasks = () => {
         
         if (payload.eventType === 'INSERT') {
           const newTask = payload.new as Task;
-          console.log('Adding new task to state:', newTask);
           
-          // Ensure we don't duplicate tasks
+          // Only add if not already in state
           setTasks(prev => {
             if (prev.some(t => t.id === newTask.id)) return prev;
             return [newTask, ...prev];
@@ -287,58 +160,37 @@ const Tasks = () => {
         } 
         else if (payload.eventType === 'UPDATE') {
           const updatedTask = payload.new as Task;
-          console.log('Updating task in state:', updatedTask);
           
           setTasks(prev => 
             prev.map(task => task.id === updatedTask.id ? updatedTask : task)
           );
         } 
         else if (payload.eventType === 'DELETE') {
-          const deletedTask = payload.old as Task;
-          console.log('Removing deleted task from state:', deletedTask);
+          const deletedTaskId = payload.old.id;
           
-          setTasks(prev => prev.filter(task => task.id !== deletedTask.id));
+          setTasks(prev => prev.filter(task => task.id !== deletedTaskId));
         }
       })
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
+      .subscribe();
     
     return () => {
-      console.log('Unsubscribing from tasks channel');
-      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(channel);
     };
   }, [user, toast]);
 
-  const matchesFilter = (task: Task, currentFilter: string): boolean => {
-    switch (currentFilter) {
-      case 'all':
-        return true;
-      case 'completed':
-        return task.status === 'completed';
-      case 'in-progress':
-        return task.status === 'in-progress';
-      case 'todo':
-        return task.status === 'todo';
-      case 'high':
-        return task.priority === 'high';
-      default:
-        return true;
-    }
-  };
-
+  // Apply search and filters
   useEffect(() => {
-    let newFilteredTasks = [...tasks];
+    let filtered = [...tasks];
 
     if (search) {
-      newFilteredTasks = newFilteredTasks.filter(task =>
+      filtered = filtered.filter(task =>
         task.title.toLowerCase().includes(search.toLowerCase()) ||
         (task.description?.toLowerCase().includes(search.toLowerCase()))
       );
     }
 
     if (filter !== 'all') {
-      newFilteredTasks = newFilteredTasks.filter(task => {
+      filtered = filtered.filter(task => {
         if (filter === 'completed') return task.status === 'completed';
         if (filter === 'in-progress') return task.status === 'in-progress';
         if (filter === 'todo') return task.status === 'todo';
@@ -347,24 +199,26 @@ const Tasks = () => {
       });
     }
 
-    setFilteredTasks(newFilteredTasks);
+    setFilteredTasks(filtered);
   }, [tasks, search, filter]);
 
-  const updateTaskStatus = async (taskId: string, newStatus: "todo" | "in-progress" | "completed") => {
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: "todo" | "in-progress" | "completed") => {
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status: newStatus })
-        .eq('id', taskId);
-
-      if (error) throw error;
-      
-      // Optimistically update the UI without waiting for the real-time event
+      // Optimistically update the UI
       setTasks(prev =>
         prev.map(task =>
           task.id === taskId ? { ...task, status: newStatus } : task
         )
       );
+      
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', taskId);
+
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Status updated",
@@ -372,6 +226,20 @@ const Tasks = () => {
       });
     } catch (error) {
       console.error("Error updating task status:", error);
+      
+      // Revert optimistic update in case of error
+      const { data } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+      
+      if (data) {
+        setTasks(prev =>
+          prev.map(task => task.id === taskId ? data as Task : task)
+        );
+      }
+      
       toast({
         title: "Error",
         description: "Failed to update task status. Please try again.",
@@ -380,17 +248,19 @@ const Tasks = () => {
     }
   };
 
-  const deleteTask = async (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
     try {
+      // Optimistically remove from UI
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+      
       const { error } = await supabase
         .from('tasks')
         .delete()
         .eq('id', taskId);
 
-      if (error) throw error;
-
-      // Optimistically update the UI without waiting for the real-time event
-      setTasks(prev => prev.filter(task => task.id !== taskId));
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Task deleted",
@@ -398,6 +268,18 @@ const Tasks = () => {
       });
     } catch (error) {
       console.error("Error deleting task:", error);
+      
+      // Reload tasks in case of error
+      const { data } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+      
+      if (data) {
+        setTasks(data as Task[]);
+      }
+      
       toast({
         title: "Error",
         description: "Failed to delete task. Please try again.",
@@ -438,157 +320,10 @@ const Tasks = () => {
                   Create a new task to keep track of your work
                 </DialogDescription>
               </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Task title" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Task description"
-                            className="resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="dueDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Due Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) =>
-                                date < new Date()
-                              }
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormDescription>
-                          Select a due date for the task.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-between gap-2">
-                    <FormField
-                      control={form.control}
-                      name="priority"
-                      defaultValue="low"
-                      render={({ field }) => (
-                        <FormItem className="w-1/2">
-                          <FormLabel>Priority</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select priority" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {priorityOptions.map((priority) => (
-                                <SelectItem key={priority.value} value={priority.value}>
-                                  {priority.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      defaultValue="todo"
-                      render={({ field }) => (
-                        <FormItem className="w-1/2">
-                          <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {statusOptions.map((status) => (
-                                <SelectItem key={status.value} value={status.value}>
-                                  {status.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="project"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Project</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Project name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        Creating...
-                      </>
-                    ) : (
-                      "Create"
-                    )}
-                  </Button>
-                </form>
-              </Form>
+              <TaskForm
+                onSubmit={onSubmit}
+                isLoading={isSubmitting}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -598,101 +333,18 @@ const Tasks = () => {
             <CardHeader>
               <CardTitle>Tasks</CardTitle>
               <CardDescription>
-                Here&apos;s a list of your tasks.
+                Here's a list of your tasks.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between py-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tasks..."
-                    className="pl-8"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[200px]">Task</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center">
-                          Loading tasks...
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredTasks.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center">
-                          No tasks found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredTasks.map((task) => (
-                        <TableRow key={task.id}>
-                          <TableCell className="font-medium">{task.title}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                task.priority === "low" && "bg-green-500/10 text-green-500",
-                                task.priority === "medium" && "bg-yellow-500/10 text-yellow-500",
-                                task.priority === "high" && "bg-red-500/10 text-red-500"
-                              )}
-                            >
-                              {task.priority}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="secondary"
-                              className={cn(
-                                task.status === "todo" && "bg-sky-500/10 text-sky-500",
-                                task.status === "in-progress" && "bg-orange-500/10 text-orange-500",
-                                task.status === "completed" && "bg-emerald-500/10 text-emerald-500"
-                              )}
-                            >
-                              {task.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No Due Date'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Select onValueChange={(value: "todo" | "in-progress" | "completed") => updateTaskStatus(task.id, value)}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Update Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="todo">Todo</SelectItem>
-                                <SelectItem value="in-progress">In Progress</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteTask(task.id)}
-                            >
-                              Delete
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <TaskList
+                tasks={filteredTasks}
+                isLoading={isLoading}
+                onDeleteTask={handleDeleteTask}
+                onUpdateTaskStatus={handleUpdateTaskStatus}
+                searchQuery={search}
+                onSearchChange={setSearch}
+              />
             </CardContent>
           </Card>
 
@@ -703,18 +355,11 @@ const Tasks = () => {
                 Filter tasks by status or priority.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4">
-              {filterOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => setFilter(option.value)}
-                >
-                  <option.icon className="mr-2 h-4 w-4" />
-                  {option.label}
-                </Button>
-              ))}
+            <CardContent>
+              <TaskFilters
+                activeFilter={filter}
+                onFilterChange={setFilter}
+              />
             </CardContent>
           </Card>
         </div>
