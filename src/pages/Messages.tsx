@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,7 +31,6 @@ const Messages = () => {
   const { messages, loading, sendMessage } = useChat(userId || null);
 
   useEffect(() => {
-    // Check if we're on mobile
     const handleResize = () => {
       setIsMobileView(window.innerWidth < 768);
       if (window.innerWidth >= 768) {
@@ -57,12 +55,10 @@ const Messages = () => {
   }, [userId, isMobileView]);
 
   useEffect(() => {
-    // Fetch all users who have messaged with current user
     const fetchContacts = async () => {
       if (!user) return;
 
       try {
-        // First, get all unique users who have communicated with the current user
         const { data, error } = await supabase
           .from('chat_messages')
           .select('sender_id, receiver_id')
@@ -73,7 +69,6 @@ const Messages = () => {
         }
 
         if (data) {
-          // Extract unique user IDs
           const contactIds = new Set<string>();
           
           data.forEach(msg => {
@@ -84,12 +79,10 @@ const Messages = () => {
             }
           });
 
-          // Skip if no contacts
           if (contactIds.size === 0) {
             return;
           }
 
-          // Fetch profile details for all contacts
           const contactsData = await Promise.all(
             Array.from(contactIds).map(async (id) => {
               const { data } = await supabase
@@ -102,7 +95,6 @@ const Messages = () => {
             })
           );
 
-          // Filter out null values
           setContacts(contactsData.filter(Boolean));
         }
       } catch (error) {
@@ -117,7 +109,6 @@ const Messages = () => {
 
     fetchContacts();
 
-    // Set up real-time subscription for new messages to update contacts list
     if (user) {
       const channel = supabase
         .channel('contacts_channel')
@@ -127,7 +118,6 @@ const Messages = () => {
           table: 'chat_messages',
           filter: `or(sender_id=eq.${user.id},receiver_id=eq.${user.id})`
         }, () => {
-          // Refresh contacts when a new message is received
           fetchContacts();
         })
         .subscribe();
@@ -139,7 +129,6 @@ const Messages = () => {
   }, [user, toast]);
 
   useEffect(() => {
-    // Fetch selected contact's profile
     const fetchSelectedContact = async () => {
       if (!userId || !user) return;
 
@@ -168,7 +157,6 @@ const Messages = () => {
     fetchSelectedContact();
   }, [userId, user, toast]);
 
-  // Scroll to the bottom when new messages are added
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -210,7 +198,6 @@ const Messages = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Contacts Sidebar */}
           {showContacts && (
             <div className="col-span-1 border rounded-lg overflow-hidden shadow-sm">
               <div className="bg-muted p-4">
@@ -260,11 +247,9 @@ const Messages = () => {
             </div>
           )}
 
-          {/* Chat Area */}
           <div className={`${showContacts && !isMobileView ? 'col-span-3' : 'col-span-4'}`}>
             {userId ? (
               <div className="border rounded-lg shadow-sm h-[600px] flex flex-col">
-                {/* Chat Header */}
                 <div className="border-b p-4 flex items-center">
                   {isMobileView && (
                     <Button 
@@ -297,7 +282,6 @@ const Messages = () => {
                   )}
                 </div>
 
-                {/* Messages */}
                 <div className="flex-grow p-4 overflow-y-auto">
                   {loading ? (
                     <div className="text-center p-4">Loading messages...</div>
@@ -318,7 +302,6 @@ const Messages = () => {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Message Input */}
                 <form onSubmit={handleSendMessage} className="border-t p-4 flex">
                   <Input
                     placeholder="Type a message..."
@@ -350,7 +333,6 @@ const Messages = () => {
         </div>
       </div>
 
-      {/* User Search Dialog */}
       <UserSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
   );
