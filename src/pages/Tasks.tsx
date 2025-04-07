@@ -248,21 +248,6 @@ const Tasks = () => {
 
     fetchTasks();
 
-    // Enable PostgreSQL replication for the tasks table to ensure realtime works
-    const enableReplication = async () => {
-      try {
-        await supabase.rpc('supabase_realtime.enable_publication_for_table', {
-          table_name: 'tasks'
-        });
-      } catch (error) {
-        // This will fail if already enabled, which is fine
-        console.log('Note: Realtime may already be enabled for tasks');
-      }
-    };
-
-    enableReplication();
-
-    // Improve real-time subscription with better error handling and logging
     const tasksChannel = supabase
       .channel('tasks-realtime')
       .on('postgres_changes', {
@@ -273,18 +258,15 @@ const Tasks = () => {
       }, (payload) => {
         console.log('Real-time task update received:', payload);
         
-        // Handle different events
         if (payload.eventType === 'INSERT') {
           const newTask = payload.new as Task;
           console.log('Adding new task to state:', newTask);
           
           setTasks(prev => {
-            // Avoid duplicates by checking if task already exists
             if (prev.some(t => t.id === newTask.id)) return prev;
             return [newTask, ...prev];
           });
           
-          // Also update filtered tasks if appropriate
           if (matchesFilter(newTask, filter)) {
             setFilteredTasks(prev => {
               if (prev.some(t => t.id === newTask.id)) return prev;
@@ -300,18 +282,14 @@ const Tasks = () => {
             prev.map(task => task.id === updatedTask.id ? updatedTask : task)
           );
           
-          // Update or remove from filtered tasks depending on filter match
           if (matchesFilter(updatedTask, filter)) {
             setFilteredTasks(prev => {
-              // If it's already in the filtered list, update it
               if (prev.some(t => t.id === updatedTask.id)) {
                 return prev.map(task => task.id === updatedTask.id ? updatedTask : task);
               }
-              // If it's not in the list but should be now, add it
               return [updatedTask, ...prev];
             });
           } else {
-            // Remove from filtered tasks if it no longer matches
             setFilteredTasks(prev => prev.filter(task => task.id !== updatedTask.id));
           }
         } 
@@ -333,7 +311,6 @@ const Tasks = () => {
     };
   }, [user, toast, filter]);
 
-  // Helper function to check if task matches filter
   const matchesFilter = (task: Task, currentFilter: string): boolean => {
     switch (currentFilter) {
       case 'all':
@@ -352,10 +329,8 @@ const Tasks = () => {
   };
 
   useEffect(() => {
-    // Apply search and filter
     let newFilteredTasks = [...tasks];
 
-    // Apply search
     if (search) {
       newFilteredTasks = newFilteredTasks.filter(task =>
         task.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -363,7 +338,6 @@ const Tasks = () => {
       );
     }
 
-    // Apply filter
     if (filter !== 'all') {
       newFilteredTasks = newFilteredTasks.filter(task => {
         if (filter === 'completed') return task.status === 'completed';
@@ -377,7 +351,7 @@ const Tasks = () => {
     setFilteredTasks(newFilteredTasks);
   }, [tasks, search, filter]);
 
-  const updateTaskStatus = async (taskId: string, newStatus: string) => {
+  const updateTaskStatus = async (taskId: string, newStatus: "todo" | "in-progress" | "completed") => {
     try {
       const { error } = await supabase
         .from('tasks')

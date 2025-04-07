@@ -119,32 +119,44 @@ const UserPerformanceCharts = () => {
           const recruiterJobIds = jobsData?.map(job => job.id) || [];
           
           if (recruiterJobIds.length > 0) {
-            // Get application status distribution
-            const { data: statusData, error: statusError } = await supabase
+            // Get application status counts
+            const { data: applicationData } = await supabase
               .from('job_applications')
-              .select('status, count(*)')
-              .in('job_id', recruiterJobIds)
-              .group('status');
+              .select('status')
+              .in('job_id', recruiterJobIds);
               
-            const processedStatusData = statusData?.map(item => ({
-              name: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-              value: parseInt(item.count)
-            })) || [];
+            // Process the status counts manually
+            const statusCounts = {};
+            applicationData?.forEach(app => {
+              const status = app.status || 'pending';
+              statusCounts[status] = (statusCounts[status] || 0) + 1;
+            });
+            
+            const processedStatusData = Object.entries(statusCounts).map(([name, count]) => ({
+              name: name.charAt(0).toUpperCase() + name.slice(1),
+              value: count
+            }));
             
             setStatusDistribution(processedStatusData);
           }
           
           // 3. Get job type distribution
-          const { data: jobTypeData, error: jobTypeError } = await supabase
+          const { data: jobsQuery } = await supabase
             .from('jobs')
-            .select('job_type, count(*)')
-            .eq('recruiter_id', user.id)
-            .group('job_type');
+            .select('job_type')
+            .eq('recruiter_id', user.id);
             
-          const processedJobTypeData = jobTypeData?.map(item => ({
-            name: item.job_type,
-            value: parseInt(item.count)
-          })) || [];
+          // Process job type counts manually
+          const jobTypeCounts = {};
+          jobsQuery?.forEach(job => {
+            const jobType = job.job_type || 'other';
+            jobTypeCounts[jobType] = (jobTypeCounts[jobType] || 0) + 1;
+          });
+          
+          const processedJobTypeData = Object.entries(jobTypeCounts).map(([name, count]) => ({
+            name,
+            value: count
+          }));
           
           setJobTypeDistribution(processedJobTypeData);
         } else {
@@ -186,21 +198,27 @@ const UserPerformanceCharts = () => {
           setWeeklyActivity(weeklyData);
           
           // 2. Application status distribution
-          const { data: statusData, error: statusError } = await supabase
+          const { data: statusQuery } = await supabase
             .from('job_applications')
-            .select('status, count(*)')
-            .eq('user_id', user.id)
-            .group('status');
+            .select('status')
+            .eq('user_id', user.id);
             
-          const processedStatusData = statusData?.map(item => ({
-            name: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-            value: parseInt(item.count)
-          })) || [];
+          // Process the status counts manually
+          const statusCounts = {};
+          statusQuery?.forEach(app => {
+            const status = app.status || 'pending';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+          });
+          
+          const processedStatusData = Object.entries(statusCounts).map(([name, count]) => ({
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            value: count
+          }));
           
           setStatusDistribution(processedStatusData);
           
           // 3. Job type distribution for applied jobs
-          const { data: jobTypeData, error: jobTypeError } = await supabase
+          const { data: jobTypeData } = await supabase
             .from('job_applications')
             .select(`
               job:jobs(job_type)
