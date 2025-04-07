@@ -70,18 +70,6 @@ const Calendar = () => {
 
     fetchEvents();
 
-    const enableReplication = async () => {
-      try {
-        await supabase.rpc('supabase_realtime.enable_publication_for_table', {
-          table_name: 'calendar_events'
-        });
-      } catch (error) {
-        console.log('Note: Realtime may already be enabled for calendar_events');
-      }
-    };
-
-    enableReplication();
-
     const eventsChannel = supabase
       .channel('calendar-events-realtime')
       .on('postgres_changes', {

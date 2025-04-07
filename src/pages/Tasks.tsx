@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, Task } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Navbar from "@/components/Navbar";
 import { CalendarIcon, CheckCheck, ListChecks, LucideIcon, Plus, Search, Timer, User2 } from 'lucide-react';
@@ -31,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Task } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -658,7 +657,7 @@ const Tasks = () => {
                             {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No Due Date'}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Select onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                            <Select onValueChange={(value: "todo" | "in-progress" | "completed") => updateTaskStatus(task.id, value)}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Update Status" />
                               </SelectTrigger>
