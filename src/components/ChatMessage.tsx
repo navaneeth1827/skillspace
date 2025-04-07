@@ -1,6 +1,5 @@
 
 import { Message } from "@/hooks/useChat";
-import { ProfileData } from "@/types/profile";
 import UserAvatar from "./UserAvatar";
 import { formatDistanceToNow } from "date-fns";
 
@@ -28,8 +27,8 @@ const ChatMessage = ({ message, isOwnMessage }: ChatMessageProps) => {
           className={`
             rounded-2xl p-4 
             ${isOwnMessage 
-              ? 'bg-navy-accent/30 text-white rounded-tr-none' 
-              : 'bg-white/10 text-white rounded-tl-none'}
+              ? 'bg-primary/10 text-foreground rounded-tr-none' 
+              : 'bg-muted text-foreground rounded-tl-none'}
           `}
         >
           <p className="mb-1">{content}</p>

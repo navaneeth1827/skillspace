@@ -44,6 +44,18 @@ export const useCalendarEvents = () => {
     if (!user) return null;
     
     try {
+      // Optimistic update
+      const tempId = `temp-${Date.now()}`;
+      const optimisticEvent = {
+        id: tempId,
+        ...eventData,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as CalendarEvent;
+      
+      setEvents(prev => [...prev, optimisticEvent]);
+      
       const { data, error } = await supabase
         .from('calendar_events')
         .insert({
@@ -54,11 +66,13 @@ export const useCalendarEvents = () => {
         .single();
         
       if (error) {
+        // Remove optimistic event on error
+        setEvents(prev => prev.filter(e => e.id !== tempId));
         throw error;
       }
       
-      // Add to local state for immediate UI update
-      setEvents(prev => [...prev, data as CalendarEvent]);
+      // Replace optimistic event with real data
+      setEvents(prev => prev.map(e => e.id === tempId ? (data as CalendarEvent) : e));
       
       return data;
     } catch (error) {
@@ -79,7 +93,7 @@ export const useCalendarEvents = () => {
     try {
       // Optimistic update
       setEvents(prev => 
-        prev.map(event => event.id === id ? { ...event, ...eventData } : event)
+        prev.map(event => event.id === id ? { ...event, ...eventData, updated_at: new Date().toISOString() } : event)
       );
       
       const { error } = await supabase
@@ -113,6 +127,9 @@ export const useCalendarEvents = () => {
     if (!user) return false;
     
     try {
+      // Save the event before optimistic delete
+      const eventToDelete = events.find(e => e.id === id);
+      
       // Optimistic delete
       setEvents(prev => prev.filter(event => event.id !== id));
       
@@ -123,15 +140,16 @@ export const useCalendarEvents = () => {
         .eq('user_id', user.id);
         
       if (error) {
+        // Restore event on error
+        if (eventToDelete) {
+          setEvents(prev => [...prev, eventToDelete]);
+        }
         throw error;
       }
       
       return true;
     } catch (error) {
       console.error('Error deleting calendar event:', error);
-      
-      // Revert optimistic delete
-      fetchEvents();
       
       toast({
         title: 'Error',
@@ -160,6 +178,7 @@ export const useCalendarEvents = () => {
           if (payload.eventType === 'INSERT') {
             const newEvent = payload.new as CalendarEvent;
             setEvents(prev => {
+              // Avoid duplicates by checking if the event is already in the list
               if (prev.some(event => event.id === newEvent.id)) return prev;
               return [...prev, newEvent];
             });
@@ -181,7 +200,7 @@ export const useCalendarEvents = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user, toast]);
+  }, [user]);
 
   return {
     events,

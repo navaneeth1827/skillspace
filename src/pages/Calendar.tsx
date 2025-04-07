@@ -47,15 +47,15 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
   return (
     <div
       className={cn(
-        "h-full min-h-[100px] p-1 border border-border relative",
+        "h-full min-h-[120px] p-2 border border-border relative",
         isToday(date) && "bg-accent/20",
         props.className
       )}
     >
-      <div className="flex justify-between mb-2">
+      <div className="flex justify-between mb-1">
         <span className={cn(
           "text-sm font-medium",
-          isToday(date) && "text-primary"
+          isToday(date) && "text-primary font-bold"
         )}>
           {format(date, 'd')}
         </span>
@@ -63,7 +63,7 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
           <Button
             variant="ghost"
             size="icon"
-            className="h-4 w-4"
+            className="h-5 w-5 rounded-full hover:bg-accent"
             onClick={(e) => {
               e.stopPropagation();
               onAddEvent();
@@ -73,25 +73,31 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
           </Button>
         )}
       </div>
-      <div className="space-y-1">
-        {dayEvents.slice(0, 3).map(event => (
+      <div className="space-y-1 overflow-auto max-h-[80px]">
+        {dayEvents.map(event => (
           <div 
             key={event.id} 
             className={cn(
-              "text-xs p-1 rounded truncate",
-              event.event_type === 'meeting' && "bg-blue-500/20 text-blue-700",
-              event.event_type === 'personal' && "bg-green-500/20 text-green-700",
-              event.event_type === 'work' && "bg-purple-500/20 text-purple-700",
-              event.event_type === 'holiday' && "bg-red-500/20 text-red-700",
-              event.event_type === 'general' && "bg-gray-500/20 text-gray-700"
+              "text-xs px-2 py-1 rounded-md truncate cursor-pointer hover:opacity-80 transition-opacity",
+              event.event_type === 'meeting' && "bg-blue-500/30 text-blue-700 border-l-2 border-blue-500",
+              event.event_type === 'personal' && "bg-green-500/30 text-green-700 border-l-2 border-green-500",
+              event.event_type === 'work' && "bg-purple-500/30 text-purple-700 border-l-2 border-purple-500",
+              event.event_type === 'holiday' && "bg-red-500/30 text-red-700 border-l-2 border-red-500",
+              event.event_type === 'general' && "bg-gray-500/30 text-gray-700 border-l-2 border-gray-500"
             )}
+            title={`${event.title}${event.location ? ` (${event.location})` : ''}`}
           >
-            {event.title}
+            <div className="flex items-center justify-between">
+              <span className="font-medium truncate">{event.title}</span>
+              {!event.is_all_day && (
+                <span className="text-[10px] opacity-70">{format(parseISO(event.start_time), 'h:mm a')}</span>
+              )}
+            </div>
           </div>
         ))}
-        {dayEvents.length > 3 && (
-          <div className="text-xs text-muted-foreground">
-            +{dayEvents.length - 3} more
+        {dayEvents.length > 4 && (
+          <div className="text-[10px] text-muted-foreground mt-1 text-center bg-accent/30 rounded-sm px-1">
+            +{dayEvents.length - 4} more
           </div>
         )}
       </div>
@@ -316,7 +322,7 @@ const Calendar = () => {
                       setCurrentDate(prevMonth);
                     }}
                   >
-                    Previous
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                   </Button>
                   <Button
                     variant="outline"
@@ -325,6 +331,7 @@ const Calendar = () => {
                       const today = new Date();
                       setCurrentDate(today);
                       setSelected(today);
+                      handleDayClick(today);
                     }}
                   >
                     Today
@@ -338,7 +345,7 @@ const Calendar = () => {
                       setCurrentDate(nextMonth);
                     }}
                   >
-                    Next
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
               </CardTitle>
@@ -346,7 +353,10 @@ const Calendar = () => {
             <CardContent>
               {loading ? (
                 <div className="flex justify-center items-center h-[600px]">
-                  Loading calendar...
+                  <div className="flex flex-col items-center">
+                    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-3"></div>
+                    <p>Loading calendar...</p>
+                  </div>
                 </div>
               ) : (
                 <CalendarComponent
@@ -356,22 +366,26 @@ const Calendar = () => {
                   month={currentDate}
                   onMonthChange={setCurrentDate}
                   components={customDayRenderer}
-                  className="w-full h-[600px]"
+                  className="w-full h-[600px] border rounded-lg shadow-sm"
                 />
               )}
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
+          <Card className="bg-card/50 backdrop-blur-sm">
+            <CardHeader className="bg-card/70">
               <CardTitle className="flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5" />
                 {selected ? format(selected, 'MMMM d, yyyy') : 'Events'}
               </CardTitle>
               <CardDescription>
                 {selected && (
-                  <span>
+                  <span className={cn(
+                    "inline-block",
+                    isToday(selected) && "bg-primary/20 px-2 py-0.5 rounded-full text-primary"
+                  )}>
                     {selectedDayEvents.length} event{selectedDayEvents.length !== 1 ? 's' : ''}
+                    {isToday(selected) && " • Today"}
                   </span>
                 )}
               </CardDescription>
@@ -379,13 +393,17 @@ const Calendar = () => {
             <CardContent>
               <div className="space-y-4">
                 {!selected ? (
-                  <div className="text-center text-muted-foreground">
-                    Select a day to see events
+                  <div className="text-center text-muted-foreground p-8">
+                    <CalendarIcon className="mx-auto h-10 w-10 mb-3 opacity-50" />
+                    <p>Select a day to see events</p>
                   </div>
                 ) : selectedDayEvents.length === 0 ? (
-                  <div className="text-center text-muted-foreground">
-                    No events for this day
-                    <div className="mt-2">
+                  <div className="text-center text-muted-foreground p-8">
+                    <div className="mx-auto h-10 w-10 border-2 border-dashed border-muted-foreground/50 rounded-full flex items-center justify-center mb-3">
+                      <Plus className="h-6 w-6 opacity-50" />
+                    </div>
+                    <p>No events for this day</p>
+                    <div className="mt-4">
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -398,10 +416,10 @@ const Calendar = () => {
                   </div>
                 ) : (
                   selectedDayEvents.map(event => (
-                    <Card key={event.id} className="overflow-hidden">
+                    <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <div
                         className={cn(
-                          "h-1",
+                          "h-1.5",
                           event.event_type === 'meeting' && "bg-blue-500",
                           event.event_type === 'personal' && "bg-green-500",
                           event.event_type === 'work' && "bg-purple-500",
@@ -410,46 +428,60 @@ const Calendar = () => {
                         )}
                       />
                       <CardContent className="p-3">
-                        <div className="font-medium">
-                          {event.title}
-                          <Badge 
-                            variant="outline" 
-                            className="ml-2 text-xs"
-                          >
-                            {event.event_type}
-                          </Badge>
+                        <div className="flex justify-between items-start">
+                          <div className="font-medium text-sm">
+                            {event.title}
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                "ml-2 text-xs",
+                                event.event_type === 'meeting' && "text-blue-500 border-blue-200 bg-blue-50/30",
+                                event.event_type === 'personal' && "text-green-500 border-green-200 bg-green-50/30",
+                                event.event_type === 'work' && "text-purple-500 border-purple-200 bg-purple-50/30",
+                                event.event_type === 'holiday' && "text-red-500 border-red-200 bg-red-50/30",
+                                event.event_type === 'general' && "text-gray-500 border-gray-200 bg-gray-50/30"
+                              )}
+                            >
+                              {event.event_type}
+                            </Badge>
+                          </div>
                         </div>
                         
-                        {!event.is_all_day && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {format(parseISO(event.start_time), 'h:mm a')} - {format(parseISO(event.end_time), 'h:mm a')}
-                          </div>
-                        )}
+                        <div className="flex items-center mt-2 text-xs text-muted-foreground">
+                          <span className="inline-block w-3 h-3 rounded-full mr-2 bg-primary/30"></span>
+                          {event.is_all_day ? (
+                            <span>All day</span>
+                          ) : (
+                            <span>{format(parseISO(event.start_time), 'h:mm a')} - {format(parseISO(event.end_time), 'h:mm a')}</span>
+                          )}
+                        </div>
                         
                         {event.location && (
-                          <div className="text-xs mt-1">
-                            📍 {event.location}
+                          <div className="flex items-center text-xs mt-2 text-muted-foreground">
+                            <span className="inline-block w-3 h-3 rounded-full mr-2 bg-accent"></span>
+                            {event.location}
                           </div>
                         )}
                         
                         {event.description && (
-                          <div className="text-sm mt-2 line-clamp-2">
+                          <div className="text-xs mt-3 border-t pt-2 border-border/50 line-clamp-2 text-muted-foreground">
                             {event.description}
                           </div>
                         )}
                         
-                        <div className="mt-2 flex justify-end space-x-2">
+                        <div className="mt-3 flex justify-end space-x-2">
                           <Button 
                             variant="ghost" 
                             size="sm"
+                            className="h-7 text-xs"
                             onClick={() => handleEditEvent(event)}
                           >
                             Edit
                           </Button>
                           <Button 
                             variant="ghost" 
-                            size="sm" 
-                            className="text-red-500 hover:text-red-600"
+                            size="sm"
+                            className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50/10"
                             onClick={() => handleDeleteEvent(event.id)}
                           >
                             Delete
