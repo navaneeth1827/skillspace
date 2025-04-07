@@ -69,4 +69,8 @@ type ExtendedSupabaseClient = typeof supabaseClient & {
   from(table: 'tasks'): any;
   from(table: 'job_application_status_history'): any;
   from(table: 'notifications'): any;
+  from(table: 'chat_messages'): any;
+  from(table: 'profiles'): any;
+  from(table: 'job_applications'): any;
+  from(table: 'jobs'): any;
 }

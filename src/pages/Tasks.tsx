@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -184,12 +185,20 @@ const Tasks = () => {
 
     try {
       setIsLoading(true);
+      
+      // Convert date to ISO string if it exists
+      const dueDate = values.dueDate ? values.dueDate.toISOString() : null;
+      
       const { data, error } = await supabase
         .from('tasks')
         .insert({
-          ...values,
+          title: values.title,
+          description: values.description || null,
           user_id: user.id,
-          due_date: values.dueDate?.toISOString() || null,
+          due_date: dueDate,
+          priority: values.priority,
+          status: values.status,
+          project: values.project || null
         })
         .select()
         .single();
@@ -197,6 +206,15 @@ const Tasks = () => {
       if (error) {
         throw error;
       }
+
+      // Manually add the new task to the state since we might miss the realtime event
+      setTasks(prevTasks => {
+        // Check if task already exists in the array
+        if (prevTasks.some(t => t.id === data.id)) {
+          return prevTasks;
+        }
+        return [data as Task, ...prevTasks];
+      });
 
       toast({
         title: 'Task created',
@@ -261,17 +279,11 @@ const Tasks = () => {
           const newTask = payload.new as Task;
           console.log('Adding new task to state:', newTask);
           
+          // Ensure we don't duplicate tasks
           setTasks(prev => {
             if (prev.some(t => t.id === newTask.id)) return prev;
             return [newTask, ...prev];
           });
-          
-          if (matchesFilter(newTask, filter)) {
-            setFilteredTasks(prev => {
-              if (prev.some(t => t.id === newTask.id)) return prev;
-              return [newTask, ...prev];
-            });
-          }
         } 
         else if (payload.eventType === 'UPDATE') {
           const updatedTask = payload.new as Task;
@@ -280,24 +292,12 @@ const Tasks = () => {
           setTasks(prev => 
             prev.map(task => task.id === updatedTask.id ? updatedTask : task)
           );
-          
-          if (matchesFilter(updatedTask, filter)) {
-            setFilteredTasks(prev => {
-              if (prev.some(t => t.id === updatedTask.id)) {
-                return prev.map(task => task.id === updatedTask.id ? updatedTask : task);
-              }
-              return [updatedTask, ...prev];
-            });
-          } else {
-            setFilteredTasks(prev => prev.filter(task => task.id !== updatedTask.id));
-          }
         } 
         else if (payload.eventType === 'DELETE') {
           const deletedTask = payload.old as Task;
           console.log('Removing deleted task from state:', deletedTask);
           
           setTasks(prev => prev.filter(task => task.id !== deletedTask.id));
-          setFilteredTasks(prev => prev.filter(task => task.id !== deletedTask.id));
         }
       })
       .subscribe((status) => {
@@ -308,7 +308,7 @@ const Tasks = () => {
       console.log('Unsubscribing from tasks channel');
       supabase.removeChannel(tasksChannel);
     };
-  }, [user, toast, filter]);
+  }, [user, toast]);
 
   const matchesFilter = (task: Task, currentFilter: string): boolean => {
     switch (currentFilter) {
@@ -358,12 +358,18 @@ const Tasks = () => {
         .eq('id', taskId);
 
       if (error) throw error;
-
+      
+      // Optimistically update the UI without waiting for the real-time event
       setTasks(prev =>
         prev.map(task =>
           task.id === taskId ? { ...task, status: newStatus } : task
         )
       );
+      
+      toast({
+        title: "Status updated",
+        description: `Task status changed to ${newStatus}`,
+      });
     } catch (error) {
       console.error("Error updating task status:", error);
       toast({
@@ -383,7 +389,13 @@ const Tasks = () => {
 
       if (error) throw error;
 
+      // Optimistically update the UI without waiting for the real-time event
       setTasks(prev => prev.filter(task => task.id !== taskId));
+      
+      toast({
+        title: "Task deleted",
+        description: "Task has been permanently removed",
+      });
     } catch (error) {
       console.error("Error deleting task:", error);
       toast({

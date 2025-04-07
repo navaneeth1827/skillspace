@@ -11,13 +11,19 @@ import { useChat } from "@/hooks/useChat";
 import { useProfileData } from "@/hooks/useProfileData";
 import Navbar from "@/components/Navbar";
 import { ProfileData } from "@/types/profile";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Search, UserPlus } from "lucide-react";
 
 const Messages = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const profileData = useProfileData(user?.id);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [contacts, setContacts] = useState<ProfileData[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const { messages, sendMessage, loading } = useChat(selectedUser);
   
   useEffect(() => {
@@ -46,22 +52,20 @@ const Messages = () => {
         const receivedUserIds = receivedMessages?.map(msg => msg.sender_id) || [];
         const uniqueUserIds = [...new Set([...sentUserIds, ...receivedUserIds])];
         
-        if (uniqueUserIds.length === 0) return;
-        
-        // Fetch user profiles
+        // Fetch user profiles even if uniqueUserIds is empty
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('*')
-          .in('id', uniqueUserIds);
+          .in('id', uniqueUserIds.length > 0 ? uniqueUserIds : ['00000000-0000-0000-0000-000000000000']);
           
-        if (profilesError) {
+        if (profilesError && uniqueUserIds.length > 0) {
           console.error("Error fetching profiles:", profilesError);
           return;
         }
         
         setContacts(profiles || []);
         
-        // Auto-select the first contact if none is selected
+        // Auto-select the first contact if none is selected and contacts exist
         if (!selectedUser && profiles && profiles.length > 0) {
           setSelectedUser(profiles[0].id);
         }
@@ -71,21 +75,92 @@ const Messages = () => {
     };
     
     fetchContacts();
+    
+    // Set up realtime subscription for new messages
+    const messagesChannel = supabase
+      .channel('messages-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `or(sender_id=eq.${user.id},receiver_id=eq.${user.id})`
+      }, (payload) => {
+        // When a new message is received, refresh contacts
+        fetchContacts();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(messagesChannel);
+    };
   }, [user, selectedUser]);
   
   const handleSendMessage = async () => {
     if (!message.trim() || !selectedUser || !user) return;
     
     const result = await sendMessage(message);
+    if (result) {
+      // Message sent successfully
+      setMessage("");
+    }
+  };
+  
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || !user) return;
     
-    setMessage("");
+    setIsSearching(true);
+    try {
+      // Search for users by name
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('full_name', `%${searchQuery}%`)
+        .limit(10);
+        
+      if (error) throw error;
+      
+      // Filter out current user
+      const filteredResults = data?.filter(profile => profile.id !== user.id) || [];
+      setSearchResults(filteredResults);
+      
+    } catch (error) {
+      console.error("Error searching users:", error);
+      toast({
+        title: "Search failed",
+        description: "Could not complete the search. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  
+  const startNewConversation = (userId: string) => {
+    setSelectedUser(userId);
+    setSearchQuery("");
+    setSearchResults([]);
+    
+    // Check if this user is already in contacts
+    if (!contacts.some(contact => contact.id === userId)) {
+      // Fetch the user profile to add to contacts
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setContacts(prev => [...prev, data]);
+          }
+        });
+    }
   };
   
   const getUserInfo = (userId: string) => {
     const contact = contacts.find(c => c.id === userId);
     return {
       id: contact?.id || '',
-      full_name: contact?.full_name || '',
+      full_name: contact?.full_name || 'Unknown User',
       title: contact?.title || '',
       location: contact?.location || '',
       bio: contact?.bio || '',
@@ -115,16 +190,56 @@ const Messages = () => {
   return (
     <div>
       <Navbar />
-      <div className="container py-8">
+      <div className="container py-8 pt-44">
         <h1 className="text-2xl font-bold mb-6">Messages</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Contacts Sidebar */}
           <Card className="md:col-span-1">
             <CardContent className="p-4">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Input
+                    placeholder="Search users..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  />
+                  <Button onClick={handleSearch} disabled={isSearching} size="icon">
+                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
+                
+                {/* Search Results */}
+                {searchResults.length > 0 && (
+                  <div className="mb-4 border rounded-md p-2">
+                    <h3 className="font-semibold text-sm mb-2">Search Results</h3>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {searchResults.map((user) => (
+                        <div 
+                          key={user.id} 
+                          className="flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-secondary/10"
+                          onClick={() => startNewConversation(user.id)}
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={user.avatar_url || ''} alt={user.full_name} />
+                            <AvatarFallback>{user.full_name?.charAt(0) || '?'}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{user.full_name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{user.title || user.user_type}</p>
+                          </div>
+                          <UserPlus className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <h2 className="font-semibold mb-4">Contacts</h2>
               {contacts.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No contacts yet.</p>
+                <p className="text-muted-foreground text-sm">No contacts yet. Search for users to start a conversation.</p>
               ) : (
                 <div className="space-y-2">
                   {contacts.map((contact) => (
@@ -139,7 +254,7 @@ const Messages = () => {
                       </Avatar>
                       <div>
                         <p className="font-medium">{contact.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{contact.title || 'No title'}</p>
+                        <p className="text-xs text-muted-foreground">{contact.title || contact.user_type || 'No title'}</p>
                       </div>
                     </div>
                   ))}
@@ -161,13 +276,17 @@ const Messages = () => {
                     </Avatar>
                     <div>
                       <p className="font-medium">{getUserInfo(selectedUser).full_name}</p>
-                      <p className="text-xs text-muted-foreground">{getUserInfo(selectedUser).title}</p>
+                      <p className="text-xs text-muted-foreground">{getUserInfo(selectedUser).title || getUserInfo(selectedUser).user_type}</p>
                     </div>
                   </div>
                   
                   {/* Messages List */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.length === 0 ? (
+                    {loading ? (
+                      <div className="flex justify-center items-center h-full">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : messages.length === 0 ? (
                       <p className="text-center text-muted-foreground">No messages yet. Start the conversation!</p>
                     ) : (
                       messages.map((msg) => (
@@ -190,12 +309,12 @@ const Messages = () => {
                       placeholder="Type your message..."
                       onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     />
-                    <Button onClick={handleSendMessage} disabled={loading}>Send</Button>
+                    <Button onClick={handleSendMessage} disabled={loading || !message.trim()}>Send</Button>
                   </div>
                 </div>
               ) : (
                 <div className="h-[600px] flex items-center justify-center">
-                  <p className="text-muted-foreground">Select a contact to start chatting</p>
+                  <p className="text-muted-foreground">Select or search for a contact to start chatting</p>
                 </div>
               )}
             </CardContent>

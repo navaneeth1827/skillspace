@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,7 +18,7 @@ export const useChat = (receiverId?: string | null) => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!user || !receiverId) return;
     
     setLoading(true);
@@ -57,7 +57,7 @@ export const useChat = (receiverId?: string | null) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, receiverId]);
 
   const sendMessage = async (content: string) => {
     if (!user || !receiverId || !content.trim()) return null;
@@ -79,6 +79,9 @@ export const useChat = (receiverId?: string | null) => {
       if (error) {
         throw error;
       }
+      
+      // Manually add message to state to ensure immediate UI update
+      setMessages(prev => [...prev, data as Message]);
       
       return data;
     } catch (error) {
@@ -102,7 +105,12 @@ export const useChat = (receiverId?: string | null) => {
           filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${receiverId}),and(sender_id=eq.${receiverId},receiver_id=eq.${user.id}))`
         }, (payload) => {
           if (payload.new) {
-            setMessages(prev => [...prev, payload.new as Message]);
+            const newMsg = payload.new as Message;
+            // Only add the message if it's not already in the list
+            setMessages(prev => {
+              if (prev.some(msg => msg.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
             
             // Mark message as read if the current user is the receiver
             if (payload.new.receiver_id === user.id) {
@@ -119,7 +127,7 @@ export const useChat = (receiverId?: string | null) => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user, receiverId]);
+  }, [user, receiverId, fetchMessages]);
 
   return {
     messages,
