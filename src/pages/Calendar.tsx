@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,15 +46,15 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
   return (
     <div
       className={cn(
-        "h-full min-h-[180px] p-4 border border-border relative",
+        "h-full p-1 relative",
         isToday(date) && "bg-accent/20",
         props.className
       )}
     >
-      <div className="flex justify-between mb-2">
+      <div className="flex justify-between items-start">
         <span className={cn(
-          "text-sm font-medium",
-          isToday(date) && "text-primary font-bold"
+          "inline-block h-7 w-7 text-sm pt-1.5 rounded-full",
+          isToday(date) && "bg-primary text-primary-foreground font-bold"
         )}>
           {format(date, 'd')}
         </span>
@@ -69,16 +68,16 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
               onAddEvent();
             }}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3 w-3" />
           </Button>
         )}
       </div>
-      <div className="space-y-2 overflow-auto max-h-[130px] pr-1">
+      <div className="space-y-1 mt-1">
         {dayEvents.map(event => (
           <div 
             key={event.id} 
             className={cn(
-              "text-xs px-3 py-2 rounded-md truncate cursor-pointer hover:opacity-80 transition-opacity",
+              "text-xs px-1 py-0.5 rounded-sm truncate cursor-pointer hover:opacity-80 transition-opacity",
               event.event_type === 'meeting' && "bg-blue-500/30 text-blue-700 border-l-2 border-blue-500",
               event.event_type === 'personal' && "bg-green-500/30 text-green-700 border-l-2 border-green-500",
               event.event_type === 'work' && "bg-purple-500/30 text-purple-700 border-l-2 border-purple-500",
@@ -87,17 +86,15 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
             )}
             title={`${event.title}${event.location ? ` (${event.location})` : ''}`}
           >
-            <div className="flex items-center justify-between">
-              <span className="font-medium truncate max-w-[85%]">{event.title}</span>
-              {!event.is_all_day && (
-                <span className="text-[10px] opacity-70">{format(parseISO(event.start_time), 'h:mm a')}</span>
-              )}
-            </div>
+            {!event.is_all_day && (
+              <span className="text-[10px] opacity-70 mr-1">{format(parseISO(event.start_time), 'h:mm a')}</span>
+            )}
+            <span className="font-medium truncate">{event.title}</span>
           </div>
         ))}
-        {dayEvents.length > 4 && (
-          <div className="text-[10px] text-muted-foreground mt-1 text-center bg-accent/30 rounded-sm px-1">
-            +{dayEvents.length - 4} more
+        {dayEvents.length > 3 && (
+          <div className="text-[10px] text-muted-foreground text-center bg-accent/30 rounded-sm px-1">
+            +{dayEvents.length - 3} more
           </div>
         )}
       </div>
@@ -264,94 +261,94 @@ const Calendar = () => {
   return (
     <div>
       <Navbar />
-      <div className="container-fluid px-4 py-8 pt-44 w-full max-w-[2000px] mx-auto">
-        <div className="flex justify-between items-center mb-6">
+      <div className="w-full max-w-full py-8 pt-44 px-0">
+        <div className="flex justify-between items-center mb-6 px-6">
           <h1 className="text-2xl font-bold">Calendar</h1>
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) {
-              setSelectedEvent(null);
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button variant="default">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Event
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedEvent ? "Edit Event" : "Add New Event"}
-                </DialogTitle>
-              </DialogHeader>
-              <CalendarEventForm
-                onSubmit={handleSubmit}
-                isLoading={isSubmitting}
-                defaultValues={selectedEvent ? {
-                  title: selectedEvent.title,
-                  description: selectedEvent.description || '',
-                  startDate: parseISO(selectedEvent.start_time),
-                  startTime: !selectedEvent.is_all_day 
-                    ? format(parseISO(selectedEvent.start_time), 'HH:mm') 
-                    : undefined,
-                  endDate: parseISO(selectedEvent.end_time),
-                  endTime: !selectedEvent.is_all_day 
-                    ? format(parseISO(selectedEvent.end_time), 'HH:mm') 
-                    : undefined,
-                  location: selectedEvent.location || '',
-                  isAllDay: selectedEvent.is_all_day,
-                  eventType: selectedEvent.event_type,
-                } : {
-                  startDate: selected,
-                  endDate: selected,
-                }}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const prevMonth = new Date(currentDate);
+                prevMonth.setMonth(prevMonth.getMonth() - 1);
+                setCurrentDate(prevMonth);
+              }}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const today = new Date();
+                setCurrentDate(today);
+                setSelected(today);
+                handleDayClick(today);
+              }}
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const nextMonth = new Date(currentDate);
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                setCurrentDate(nextMonth);
+              }}
+            >
+              Next <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) {
+                setSelectedEvent(null);
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="default">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Event
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    {selectedEvent ? "Edit Event" : "Add New Event"}
+                  </DialogTitle>
+                </DialogHeader>
+                <CalendarEventForm
+                  onSubmit={handleSubmit}
+                  isLoading={isSubmitting}
+                  defaultValues={selectedEvent ? {
+                    title: selectedEvent.title,
+                    description: selectedEvent.description || '',
+                    startDate: parseISO(selectedEvent.start_time),
+                    startTime: !selectedEvent.is_all_day 
+                      ? format(parseISO(selectedEvent.start_time), 'HH:mm') 
+                      : undefined,
+                    endDate: parseISO(selectedEvent.end_time),
+                    endTime: !selectedEvent.is_all_day 
+                      ? format(parseISO(selectedEvent.end_time), 'HH:mm') 
+                      : undefined,
+                    location: selectedEvent.location || '',
+                    isAllDay: selectedEvent.is_all_day,
+                    eventType: selectedEvent.event_type,
+                  } : {
+                    startDate: selected,
+                    endDate: selected,
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
-          <Card className="lg:col-span-7 shadow-lg">
-            <CardHeader className="pb-0">
-              <CardTitle className="flex justify-between items-center">
-                <span className="text-xl">{format(currentDate, 'MMMM yyyy')}</span>
-                <div className="flex space-x-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const prevMonth = new Date(currentDate);
-                      prevMonth.setMonth(prevMonth.getMonth() - 1);
-                      setCurrentDate(prevMonth);
-                    }}
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const today = new Date();
-                      setCurrentDate(today);
-                      setSelected(today);
-                      handleDayClick(today);
-                    }}
-                  >
-                    Today
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const nextMonth = new Date(currentDate);
-                      nextMonth.setMonth(nextMonth.getMonth() + 1);
-                      setCurrentDate(nextMonth);
-                    }}
-                  >
-                    Next <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 px-6">
+          <Card className="lg:col-span-10 shadow-lg border-0 rounded-none">
+            <CardHeader className="pb-0 border-b">
+              <CardTitle className="text-xl text-center">
+                {format(currentDate, 'MMMM yyyy')}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 w-full">
@@ -370,13 +367,14 @@ const Calendar = () => {
                   month={currentDate}
                   onMonthChange={setCurrentDate}
                   components={customDayRenderer}
-                  className="w-full h-[800px] overflow-auto border-none"
+                  className="w-full overflow-auto border-none"
+                  fixedWeeks
                 />
               )}
             </CardContent>
           </Card>
           
-          <Card className="bg-card/50 backdrop-blur-sm shadow-lg lg:sticky lg:top-24 lg:self-start">
+          <Card className="bg-card/50 backdrop-blur-sm shadow-lg lg:col-span-2 lg:sticky lg:top-24 lg:self-start">
             <CardHeader className="bg-card/70">
               <CardTitle className="flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5" />

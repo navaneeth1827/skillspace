@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
@@ -121,5 +120,34 @@
   /* Card with neon border */
   .neon-card {
     @apply glass-card border-neon-blue shadow-[0_0_5px_#00f3ff] animate-neon-pulse;
+  }
+
+  /* Calendar specific utilities */
+  .calendar-grid {
+    @apply grid grid-cols-7 gap-0 divide-x divide-y divide-border;
+  }
+  
+  .calendar-header {
+    @apply flex items-center justify-center h-10 text-sm font-medium border-b border-border;
+  }
+  
+  .calendar-day {
+    @apply min-h-[100px] p-1 hover:bg-accent/10 transition-colors;
+  }
+  
+  .calendar-day-today {
+    @apply bg-accent/20;
+  }
+  
+  .calendar-date {
+    @apply inline-flex items-center justify-center h-6 w-6 text-sm rounded-full;
+  }
+  
+  .calendar-date-today {
+    @apply bg-primary text-primary-foreground font-medium;
+  }
+  
+  .calendar-event {
+    @apply text-xs p-1 rounded-sm mb-1 truncate cursor-pointer hover:opacity-80;
   }
 }
