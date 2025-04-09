@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,12 +46,12 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
   return (
     <div
       className={cn(
-        "h-full min-h-[120px] p-2 border border-border relative",
+        "h-full min-h-[160px] p-3 border border-border relative",
         isToday(date) && "bg-accent/20",
         props.className
       )}
     >
-      <div className="flex justify-between mb-1">
+      <div className="flex justify-between mb-2">
         <span className={cn(
           "text-sm font-medium",
           isToday(date) && "text-primary font-bold"
@@ -63,22 +62,22 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5 rounded-full hover:bg-accent"
+            className="h-6 w-6 rounded-full hover:bg-accent"
             onClick={(e) => {
               e.stopPropagation();
               onAddEvent();
             }}
           >
-            <Plus className="h-3 w-3" />
+            <Plus className="h-4 w-4" />
           </Button>
         )}
       </div>
-      <div className="space-y-1 overflow-auto max-h-[80px]">
+      <div className="space-y-2 overflow-auto max-h-[110px] pr-1">
         {dayEvents.map(event => (
           <div 
             key={event.id} 
             className={cn(
-              "text-xs px-2 py-1 rounded-md truncate cursor-pointer hover:opacity-80 transition-opacity",
+              "text-xs px-3 py-2 rounded-md truncate cursor-pointer hover:opacity-80 transition-opacity",
               event.event_type === 'meeting' && "bg-blue-500/30 text-blue-700 border-l-2 border-blue-500",
               event.event_type === 'personal' && "bg-green-500/30 text-green-700 border-l-2 border-green-500",
               event.event_type === 'work' && "bg-purple-500/30 text-purple-700 border-l-2 border-purple-500",
@@ -88,7 +87,7 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
             title={`${event.title}${event.location ? ` (${event.location})` : ''}`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-medium truncate">{event.title}</span>
+              <span className="font-medium truncate max-w-[85%]">{event.title}</span>
               {!event.is_all_day && (
                 <span className="text-[10px] opacity-70">{format(parseISO(event.start_time), 'h:mm a')}</span>
               )}
@@ -224,12 +223,16 @@ const Calendar = () => {
       title: event.title,
       description: event.description || '',
       startDate: startDate,
-      startTime: event.is_all_day ? undefined : format(startDate, 'HH:mm'),
+      startTime: !selectedEvent.is_all_day 
+        ? format(parseISO(event.start_time), 'HH:mm') 
+        : undefined,
       endDate: endDate,
-      endTime: event.is_all_day ? undefined : format(endDate, 'HH:mm'),
+      endTime: !selectedEvent.is_all_day 
+        ? format(parseISO(event.end_time), 'HH:mm') 
+        : undefined,
       location: event.location || '',
-      isAllDay: event.is_all_day,
-      eventType: event.event_type,
+      isAllDay: selectedEvent.is_all_day,
+      eventType: selectedEvent.event_type,
     };
     
     setDialogOpen(true);
@@ -307,12 +310,12 @@ const Calendar = () => {
           </Dialog>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="md:col-span-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="md:col-span-3 shadow-lg">
             <CardHeader>
               <CardTitle className="flex justify-between items-center">
-                <span>{format(currentDate, 'MMMM yyyy')}</span>
-                <div className="flex space-x-2">
+                <span className="text-xl">{format(currentDate, 'MMMM yyyy')}</span>
+                <div className="flex space-x-3">
                   <Button
                     variant="outline"
                     size="sm"
@@ -352,7 +355,7 @@ const Calendar = () => {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="flex justify-center items-center h-[600px]">
+                <div className="flex justify-center items-center h-[700px]">
                   <div className="flex flex-col items-center">
                     <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-3"></div>
                     <p>Loading calendar...</p>
@@ -366,13 +369,13 @@ const Calendar = () => {
                   month={currentDate}
                   onMonthChange={setCurrentDate}
                   components={customDayRenderer}
-                  className="w-full h-[600px] border rounded-lg shadow-sm"
+                  className="w-full h-[700px] border rounded-lg shadow-sm"
                 />
               )}
             </CardContent>
           </Card>
           
-          <Card className="bg-card/50 backdrop-blur-sm">
+          <Card className="bg-card/50 backdrop-blur-sm shadow-lg">
             <CardHeader className="bg-card/70">
               <CardTitle className="flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5" />
@@ -419,7 +422,7 @@ const Calendar = () => {
                     <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <div
                         className={cn(
-                          "h-1.5",
+                          "h-2",
                           event.event_type === 'meeting' && "bg-blue-500",
                           event.event_type === 'personal' && "bg-green-500",
                           event.event_type === 'work' && "bg-purple-500",
@@ -427,9 +430,9 @@ const Calendar = () => {
                           event.event_type === 'general' && "bg-gray-500"
                         )}
                       />
-                      <CardContent className="p-3">
+                      <CardContent className="p-4">
                         <div className="flex justify-between items-start">
-                          <div className="font-medium text-sm">
+                          <div className="font-medium text-base">
                             {event.title}
                             <Badge 
                               variant="outline" 
@@ -447,7 +450,7 @@ const Calendar = () => {
                           </div>
                         </div>
                         
-                        <div className="flex items-center mt-2 text-xs text-muted-foreground">
+                        <div className="flex items-center mt-3 text-sm text-muted-foreground">
                           <span className="inline-block w-3 h-3 rounded-full mr-2 bg-primary/30"></span>
                           {event.is_all_day ? (
                             <span>All day</span>
@@ -457,23 +460,23 @@ const Calendar = () => {
                         </div>
                         
                         {event.location && (
-                          <div className="flex items-center text-xs mt-2 text-muted-foreground">
+                          <div className="flex items-center text-sm mt-2 text-muted-foreground">
                             <span className="inline-block w-3 h-3 rounded-full mr-2 bg-accent"></span>
                             {event.location}
                           </div>
                         )}
                         
                         {event.description && (
-                          <div className="text-xs mt-3 border-t pt-2 border-border/50 line-clamp-2 text-muted-foreground">
+                          <div className="text-sm mt-3 border-t pt-2 border-border/50 line-clamp-2 text-muted-foreground">
                             {event.description}
                           </div>
                         )}
                         
-                        <div className="mt-3 flex justify-end space-x-2">
+                        <div className="mt-4 flex justify-end space-x-2">
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            className="h-7 text-xs"
+                            className="h-8 text-xs"
                             onClick={() => handleEditEvent(event)}
                           >
                             Edit
@@ -481,7 +484,7 @@ const Calendar = () => {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50/10"
+                            className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-50/10"
                             onClick={() => handleDeleteEvent(event.id)}
                           >
                             Delete
@@ -501,4 +504,3 @@ const Calendar = () => {
 };
 
 export default Calendar;
-
