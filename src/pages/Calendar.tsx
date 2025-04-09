@@ -264,7 +264,7 @@ const Calendar = () => {
   return (
     <div>
       <Navbar />
-      <div className="container max-w-[1400px] py-8 pt-44">
+      <div className="container-fluid px-4 py-8 pt-44 w-full max-w-[2000px] mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Calendar</h1>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
@@ -311,9 +311,9 @@ const Calendar = () => {
           </Dialog>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
-          <Card className="md:col-span-6 shadow-lg">
-            <CardHeader>
+        <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
+          <Card className="lg:col-span-7 shadow-lg">
+            <CardHeader className="pb-0">
               <CardTitle className="flex justify-between items-center">
                 <span className="text-xl">{format(currentDate, 'MMMM yyyy')}</span>
                 <div className="flex space-x-3">
@@ -354,7 +354,7 @@ const Calendar = () => {
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 w-full">
               {loading ? (
                 <div className="flex justify-center items-center h-[800px]">
                   <div className="flex flex-col items-center">
@@ -376,7 +376,7 @@ const Calendar = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-card/50 backdrop-blur-sm shadow-lg md:sticky md:top-24 md:self-start">
+          <Card className="bg-card/50 backdrop-blur-sm shadow-lg lg:sticky lg:top-24 lg:self-start">
             <CardHeader className="bg-card/70">
               <CardTitle className="flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5" />
