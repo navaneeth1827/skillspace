@@ -20,7 +20,7 @@ function Calendar({
       className={cn("p-4", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-6",
+        month: "space-y-6 w-full",
         caption: "flex justify-center pt-2 pb-4 relative items-center",
         caption_label: "text-base font-medium",
         nav: "space-x-2 flex items-center",
@@ -33,12 +33,12 @@ function Calendar({
         table: "w-full border-collapse space-y-2",
         head_row: "flex w-full",
         head_cell:
-          "text-muted-foreground rounded-md w-12 sm:w-14 font-normal text-sm",
+          "text-muted-foreground rounded-md w-14 sm:w-16 lg:w-20 font-normal text-sm",
         row: "flex w-full mt-3",
-        cell: "h-12 w-12 sm:h-14 sm:w-14 text-center text-base p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+        cell: "h-14 w-14 sm:h-16 sm:w-16 lg:h-20 lg:w-20 text-center text-base p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-12 w-12 sm:h-14 sm:w-14 p-0 font-normal aria-selected:opacity-100"
+          "h-14 w-14 sm:h-16 sm:w-16 lg:h-20 lg:w-20 p-0 font-normal aria-selected:opacity-100"
         ),
         day_range_end: "day-range-end",
         day_selected:

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,7 +47,7 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
   return (
     <div
       className={cn(
-        "h-full min-h-[160px] p-3 border border-border relative",
+        "h-full min-h-[180px] p-4 border border-border relative",
         isToday(date) && "bg-accent/20",
         props.className
       )}
@@ -72,7 +73,7 @@ const CalendarDay = ({ date, events, onAddEvent, ...props }: CalendarDayProps) =
           </Button>
         )}
       </div>
-      <div className="space-y-2 overflow-auto max-h-[110px] pr-1">
+      <div className="space-y-2 overflow-auto max-h-[130px] pr-1">
         {dayEvents.map(event => (
           <div 
             key={event.id} 
@@ -263,7 +264,7 @@ const Calendar = () => {
   return (
     <div>
       <Navbar />
-      <div className="container py-8 pt-44">
+      <div className="container max-w-[1400px] py-8 pt-44">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Calendar</h1>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
@@ -310,8 +311,8 @@ const Calendar = () => {
           </Dialog>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="md:col-span-3 shadow-lg">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
+          <Card className="md:col-span-6 shadow-lg">
             <CardHeader>
               <CardTitle className="flex justify-between items-center">
                 <span className="text-xl">{format(currentDate, 'MMMM yyyy')}</span>
@@ -353,9 +354,9 @@ const Calendar = () => {
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {loading ? (
-                <div className="flex justify-center items-center h-[700px]">
+                <div className="flex justify-center items-center h-[800px]">
                   <div className="flex flex-col items-center">
                     <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-3"></div>
                     <p>Loading calendar...</p>
@@ -369,13 +370,13 @@ const Calendar = () => {
                   month={currentDate}
                   onMonthChange={setCurrentDate}
                   components={customDayRenderer}
-                  className="w-full h-[700px] border rounded-lg shadow-sm"
+                  className="w-full h-[800px] overflow-auto border-none"
                 />
               )}
             </CardContent>
           </Card>
           
-          <Card className="bg-card/50 backdrop-blur-sm shadow-lg">
+          <Card className="bg-card/50 backdrop-blur-sm shadow-lg md:sticky md:top-24 md:self-start">
             <CardHeader className="bg-card/70">
               <CardTitle className="flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5" />
