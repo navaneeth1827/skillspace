@@ -116,6 +116,19 @@ export const useJobApplications = () => {
 
     setIsLoading(true);
     try {
+      // Get application details first for notifications
+      const { data: applicationData, error: applicationError } = await supabase
+        .from('job_applications')
+        .select(`
+          *,
+          job:jobs(title, recruiter_id),
+          user_info:profiles!job_applications_user_id_fkey(full_name)
+        `)
+        .eq('id', applicationId)
+        .single();
+
+      if (applicationError) throw applicationError;
+      
       // Update application status
       const { error: updateError } = await supabase
         .from('job_applications')
@@ -136,6 +149,20 @@ export const useJobApplications = () => {
 
       if (historyError) throw historyError;
 
+      // Create notification for the applicant
+      if (applicationData && applicationData.user_id) {
+        const jobTitle = applicationData.job?.title || 'a job';
+        const statusMessage = getStatusMessage(newStatus);
+
+        await supabase.from('notifications').insert({
+          user_id: applicationData.user_id,
+          title: `Application ${newStatus}`,
+          message: `Your application for "${jobTitle}" has been ${statusMessage}`,
+          type: 'application_update',
+          related_id: applicationId
+        });
+      }
+
       toast({
         title: 'Status updated',
         description: `Application status changed to ${newStatus}`
@@ -152,6 +179,22 @@ export const useJobApplications = () => {
       return false;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper function to get appropriate status message
+  const getStatusMessage = (status: string): string => {
+    switch (status) {
+      case 'accepted':
+        return 'accepted! Congratulations!';
+      case 'rejected':
+        return 'rejected. Thank you for your interest.';
+      case 'interview':
+        return 'moved to the interview stage.';
+      case 'reviewing':
+        return 'under review.';
+      default:
+        return `updated to ${status}.`;
     }
   };
 
