@@ -1,295 +1,320 @@
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-
-export interface JobApplication {
-  id: string;
-  job_id: string;
-  applicant_id: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  cover_letter?: string;
-  portfolio_url?: string;
-  expected_salary?: string;
-  availability_date?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  job?: {
-    id: string;
-    title: string;
-    company: string;
-    location: string;
-    job_type: string;
-    salary_range: string;
-    created_by: string;
-  };
-  applicant?: {
-    id: string;
-    email: string;
-    full_name: string;
-    user_metadata: any;
-  };
-}
+import { supabase } from '@/integrations/supabase/client';
+import { JobApplication, ApplicationStatusHistory } from '@/types/job';
 
 export const useJobApplications = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [applications, setApplications] = useState<JobApplication[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Apply to a job
   const applyToJob = async (
-    jobId: string,
-    coverLetter: string,
+    jobId: string, 
+    coverLetter: string, 
     portfolioUrl?: string,
     expectedSalary?: string,
     availabilityDate?: string
   ) => {
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to apply for jobs',
+        variant: 'destructive'
+      });
+      return null;
+    }
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-
-      // Check if user already applied
-      const { data: existingApplication } = await supabase
+      // Check if user already applied to this job
+      const { data: existingApplications } = await supabase
         .from('job_applications')
         .select('id')
         .eq('job_id', jobId)
-        .eq('applicant_id', user.id)
+        .eq('user_id', user.id)
         .single();
 
-      if (existingApplication) {
-        throw new Error('You have already applied to this job');
+      if (existingApplications) {
+        toast({
+          title: 'Already applied',
+          description: 'You have already applied to this job',
+          variant: 'destructive'
+        });
+        return null;
       }
 
-      const { data, error } = await supabase
+      // Create application
+      const { data: application, error } = await supabase
         .from('job_applications')
         .insert({
           job_id: jobId,
-          applicant_id: user.id,
+          user_id: user.id,
           cover_letter: coverLetter,
+          status: 'pending',
           portfolio_url: portfolioUrl,
           expected_salary: expectedSalary,
-          availability_date: availabilityDate,
-          status: 'pending'
+          availability_date: availabilityDate
         })
-        .select()
+        .select('*')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      // Get job details for notification
-      const { data: jobData } = await supabase
+      // Get job and applicant details for notification
+      const { data: job } = await supabase
         .from('jobs')
-        .select('title, created_by')
+        .select('title, recruiter_id')
         .eq('id', jobId)
         .single();
 
+      const { data: applicantProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
       // Create notification for recruiter
-      if (jobData) {
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: jobData.created_by,
-            type: 'new_application',
-            title: 'New Job Application',
-            message: `New application received for ${jobData.title}`,
-            related_id: data.id
-          });
+      if (job?.recruiter_id) {
+        await supabase.from('notifications').insert({
+          user_id: job.recruiter_id,
+          title: 'New Job Application',
+          message: `${applicantProfile?.full_name || 'Someone'} has applied to your job "${job.title}"`,
+          type: 'new_application',
+          related_id: application.id
+        });
       }
+
+      // Create notification for applicant confirming submission
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: 'Application Submitted',
+        message: `Your application for "${job?.title}" has been successfully submitted`,
+        type: 'application_submitted',
+        related_id: application.id
+      });
 
       toast({
         title: 'Application submitted',
-        description: 'Your job application has been sent successfully.',
+        description: 'Your application has been submitted successfully'
       });
 
-      return data;
-    } catch (error: any) {
+      return application;
+    } catch (error) {
+      console.error('Error applying to job:', error);
       toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
+        title: 'Application failed',
+        description: 'Failed to submit application. Please try again.',
+        variant: 'destructive'
       });
-      throw error;
+      return null;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Update application status (for recruiters)
   const updateApplicationStatus = async (
     applicationId: string,
     newStatus: string,
     notes?: string
   ) => {
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to update applications',
+        variant: 'destructive'
+      });
+      return false;
+    }
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
+      console.log('Updating application status:', { applicationId, newStatus, notes });
 
-      const { data, error } = await supabase
+      // Get application details first
+      const { data: applicationData, error: applicationError } = await supabase
         .from('job_applications')
-        .update({
-          status: newStatus,
-          notes: notes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', applicationId)
         .select(`
           *,
-          job:jobs(title, company),
-          applicant:profiles(full_name, email)
+          job:jobs(title, recruiter_id),
+          user_info:profiles!job_applications_user_id_fkey(full_name)
         `)
+        .eq('id', applicationId)
         .single();
 
-      if (error) throw error;
+      if (applicationError) {
+        console.error('Error fetching application:', applicationError);
+        throw applicationError;
+      }
 
-      // Create notification for applicant
-      await supabase
-        .from('notifications')
+      console.log('Application data fetched:', applicationData);
+      
+      // Update application status
+      const { error: updateError } = await supabase
+        .from('job_applications')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', applicationId);
+
+      if (updateError) {
+        console.error('Error updating application:', updateError);
+        throw updateError;
+      }
+
+      console.log('Application status updated successfully');
+
+      // Create status history entry
+      const { error: historyError } = await supabase
+        .from('job_application_status_history')
         .insert({
-          user_id: data.applicant_id,
-          type: 'application_update',
-          title: 'Application Status Updated',
-          message: `Your application for ${data.job?.title} has been ${newStatus}`,
-          related_id: applicationId
+          application_id: applicationId,
+          status: newStatus,
+          notes: notes || null,
+          changed_by: user.id
         });
+
+      if (historyError) {
+        console.error('Error creating history entry:', historyError);
+        // Don't throw here, history is not critical
+      }
+
+      // Get recruiter profile for notification
+      const { data: recruiterProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
+      // Create notification for the applicant
+      if (applicationData?.user_id) {
+        const jobTitle = applicationData.job?.title || 'Unknown Job';
+        const statusMessage = getStatusMessage(newStatus);
+        const recruiterName = recruiterProfile?.full_name || 'The recruiter';
+
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: applicationData.user_id,
+            title: `Application ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+            message: `${recruiterName} has ${statusMessage} your application for "${jobTitle}"`,
+            type: 'application_update',
+            related_id: applicationId
+          });
+
+        if (notificationError) {
+          console.error('Error creating applicant notification:', notificationError);
+        } else {
+          console.log('Applicant notification created successfully');
+        }
+      }
+
+      // Create notification for the recruiter (activity log)
+      if (applicationData?.job?.recruiter_id === user.id) {
+        const applicantName = applicationData.user_info?.full_name || 'Unknown applicant';
+        const jobTitle = applicationData.job?.title || 'Unknown Job';
+
+        const { error: recruiterNotificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            title: 'Application Status Updated',
+            message: `You ${getActionMessage(newStatus)} ${applicantName}'s application for "${jobTitle}"`,
+            type: 'recruiter_activity',
+            related_id: applicationId
+          });
+
+        if (recruiterNotificationError) {
+          console.error('Error creating recruiter notification:', recruiterNotificationError);
+        }
+      }
 
       toast({
         title: 'Status updated',
-        description: `Application status changed to ${newStatus}`,
+        description: `Application status changed to ${newStatus}`
       });
-
-      // Update local state
-      setApplications(prev => 
-        prev.map(app => 
-          app.id === applicationId 
-            ? { ...app, status: newStatus as any, notes, updated_at: new Date().toISOString() }
-            : app
-        )
-      );
-
-      return data;
-    } catch (error: any) {
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating application status:', error);
       toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
+        title: 'Update failed',
+        description: 'Failed to update application status. Please try again.',
+        variant: 'destructive'
       });
-      throw error;
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Get applications for recruiter (received applications)
-  const getRecruiterApplications = async () => {
-    if (!user) return [];
-
-    try {
-      setIsLoading(true);
-
-      const { data, error } = await supabase
-        .from('job_applications')
-        .select(`
-          *,
-          job:jobs!inner(
-            id,
-            title,
-            company,
-            location,
-            job_type,
-            salary_range,
-            created_by
-          ),
-          applicant:profiles(
-            id,
-            email,
-            full_name,
-            user_metadata
-          )
-        `)
-        .eq('job.created_by', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setApplications(data || []);
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching recruiter applications:', error);
-      return [];
-    } finally {
-      setIsLoading(false);
+  // Helper function to get appropriate status message for applicant
+  const getStatusMessage = (status: string): string => {
+    switch (status) {
+      case 'accepted':
+        return 'accepted';
+      case 'rejected':
+        return 'rejected';
+      case 'interview':
+        return 'moved to interview stage for';
+      case 'reviewing':
+        return 'is reviewing';
+      default:
+        return `updated to ${status}`;
     }
   };
 
-  // Get applications for applicant (sent applications)
-  const getApplicantApplications = async () => {
-    if (!user) return [];
-
-    try {
-      setIsLoading(true);
-
-      const { data, error } = await supabase
-        .from('job_applications')
-        .select(`
-          *,
-          job:jobs(
-            id,
-            title,
-            company,
-            location,
-            job_type,
-            salary_range,
-            created_by
-          )
-        `)
-        .eq('applicant_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setApplications(data || []);
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching applicant applications:', error);
-      return [];
-    } finally {
-      setIsLoading(false);
+  // Helper function to get action message for recruiter
+  const getActionMessage = (status: string): string => {
+    switch (status) {
+      case 'accepted':
+        return 'accepted';
+      case 'rejected':
+        return 'rejected';
+      case 'interview':
+        return 'moved to interview stage';
+      case 'reviewing':
+        return 'are now reviewing';
+      default:
+        return `updated to ${status}`;
     }
   };
 
-  // Get application history (for ApplicationDetails component)
   const getApplicationHistory = async (applicationId: string) => {
+    if (!user) return [];
+
     try {
       const { data, error } = await supabase
-        .from('job_applications')
+        .from('job_application_status_history')
         .select(`
           *,
-          job:jobs(title, company),
-          applicant:profiles(full_name, email)
+          changed_by:profiles!inner(full_name, avatar_url)
         `)
-        .eq('id', applicationId)
-        .single();
+        .eq('application_id', applicationId)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      
+      return data || [];
     } catch (error) {
       console.error('Error fetching application history:', error);
-      return null;
+      toast({
+        title: 'Error',
+        description: 'Failed to load application history',
+        variant: 'destructive'
+      });
+      return [];
     }
   };
 
   return {
-    applications,
-    isLoading,
     applyToJob,
     updateApplicationStatus,
-    getRecruiterApplications,
-    getApplicantApplications,
-    getApplicationHistory
+    getApplicationHistory,
+    isLoading
   };
 };
