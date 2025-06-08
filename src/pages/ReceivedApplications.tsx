@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +23,7 @@ const ReceivedApplications = () => {
   const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [applicationType, setApplicationType] = useState<'received' | 'sent'>('received');
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -31,12 +31,21 @@ const ReceivedApplications = () => {
     const fetchApplications = async () => {
       setIsLoading(true);
       try {
+        console.log('Fetching applications for user:', user.id, 'Type:', applicationType);
+        
         if (applicationType === 'received') {
           // Fetch applications for recruiter's jobs
-          const { data: jobsData } = await supabase
+          const { data: jobsData, error: jobsError } = await supabase
             .from('jobs')
             .select('id')
             .eq('recruiter_id', user.id);
+
+          if (jobsError) {
+            console.error('Error fetching jobs:', jobsError);
+            throw jobsError;
+          }
+
+          console.log('Jobs found:', jobsData);
 
           if (jobsData && jobsData.length > 0) {
             const jobIds = jobsData.map(job => job.id);
@@ -51,7 +60,12 @@ const ReceivedApplications = () => {
               .in('job_id', jobIds)
               .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+              console.error('Error fetching applications:', error);
+              throw error;
+            }
+
+            console.log('Applications fetched:', applicationsData);
 
             const processedApplications = applicationsData?.map(app => {
               if (!app.user_info || 'error' in app.user_info) {
@@ -69,6 +83,7 @@ const ReceivedApplications = () => {
 
             setApplications(processedApplications as JobApplication[]);
           } else {
+            console.log('No jobs found for recruiter');
             setApplications([]);
           }
         } else {
@@ -82,7 +97,12 @@ const ReceivedApplications = () => {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error fetching sent applications:', error);
+            throw error;
+          }
+
+          console.log('Sent applications fetched:', appliedApplications);
           setApplications(appliedApplications as JobApplication[]);
         }
       } catch (error) {
@@ -92,6 +112,7 @@ const ReceivedApplications = () => {
           description: "Failed to load applications. Please try again.",
           variant: "destructive"
         });
+        setApplications([]);
       } finally {
         setIsLoading(false);
       }
@@ -118,21 +139,41 @@ const ReceivedApplications = () => {
   }, [user, toast, applicationType]);
 
   const handleUpdateApplicationStatus = async (applicationId: string, newStatus: string) => {
-    const success = await updateApplicationStatus(applicationId, newStatus);
+    setIsUpdating(applicationId);
+    console.log('Handling status update:', { applicationId, newStatus });
     
-    if (success) {
-      // Update local state to reflect the change immediately
-      setApplications(prev => 
-        prev.map(app => 
-          app.id === applicationId 
-            ? { ...app, status: newStatus } 
-            : app
-        )
-      );
+    try {
+      const success = await updateApplicationStatus(applicationId, newStatus);
+      
+      if (success) {
+        console.log('Status update successful, updating local state');
+        // Update local state to reflect the change immediately
+        setApplications(prev => 
+          prev.map(app => 
+            app.id === applicationId 
+              ? { ...app, status: newStatus, updated_at: new Date().toISOString() } 
+              : app
+          )
+        );
 
-      if (selectedApplication?.id === applicationId) {
-        setSelectedApplication(prev => prev ? { ...prev, status: newStatus } : null);
+        if (selectedApplication?.id === applicationId) {
+          setSelectedApplication(prev => prev ? { ...prev, status: newStatus } : null);
+        }
+
+        toast({
+          title: 'Success',
+          description: `Application ${newStatus} successfully`,
+        });
       }
+    } catch (error) {
+      console.error('Error in handleUpdateApplicationStatus:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update application status',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsUpdating(null);
     }
   };
 
@@ -147,6 +188,21 @@ const ReceivedApplications = () => {
 
   const handleViewProfile = (userId: string) => {
     navigate(`/profile/${userId}`);
+  };
+
+  const getBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'outline';
+      case 'accepted':
+        return 'default';
+      case 'rejected':
+        return 'destructive';
+      case 'interview':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
   };
 
   if (!user) {
@@ -213,9 +269,12 @@ const ReceivedApplications = () => {
                             <div className="text-sm text-muted-foreground">
                               Applied for: {application.job?.title || 'Unknown Job'}
                             </div>
+                            <div className="text-xs text-muted-foreground">
+                              Applied on: {new Date(application.created_at).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
-                        <Badge variant={application.status === 'pending' ? 'outline' : application.status === 'accepted' ? 'default' : 'secondary'}>
+                        <Badge variant={getBadgeVariant(application.status)}>
                           {application.status}
                         </Badge>
                       </div>
@@ -249,17 +308,29 @@ const ReceivedApplications = () => {
                               variant="default" 
                               size="sm"
                               onClick={() => handleUpdateApplicationStatus(application.id, 'accepted')}
+                              disabled={isUpdating === application.id}
                             >
-                              Accept
+                              {isUpdating === application.id ? 'Accepting...' : 'Accept'}
                             </Button>
                             <Button 
                               variant="secondary" 
                               size="sm"
                               onClick={() => handleUpdateApplicationStatus(application.id, 'rejected')}
+                              disabled={isUpdating === application.id}
                             >
-                              Reject
+                              {isUpdating === application.id ? 'Rejecting...' : 'Reject'}
                             </Button>
                           </>
+                        )}
+                        {application.status === 'accepted' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleUpdateApplicationStatus(application.id, 'interview')}
+                            disabled={isUpdating === application.id}
+                          >
+                            {isUpdating === application.id ? 'Moving...' : 'Move to Interview'}
+                          </Button>
                         )}
                       </div>
                     </CardContent>
@@ -307,14 +378,7 @@ const ReceivedApplications = () => {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <Badge 
-                            variant={
-                              application.status === 'pending' ? 'outline' : 
-                              application.status === 'accepted' ? 'default' : 
-                              application.status === 'rejected' ? 'destructive' : 
-                              'secondary'
-                            }
-                          >
+                          <Badge variant={getBadgeVariant(application.status)}>
                             {application.status}
                           </Badge>
                           {application.status === 'accepted' && (

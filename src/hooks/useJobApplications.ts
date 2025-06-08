@@ -132,7 +132,9 @@ export const useJobApplications = () => {
 
     setIsLoading(true);
     try {
-      // Get application details first for notifications
+      console.log('Updating application status:', { applicationId, newStatus, notes });
+
+      // Get application details first
       const { data: applicationData, error: applicationError } = await supabase
         .from('job_applications')
         .select(`
@@ -143,15 +145,28 @@ export const useJobApplications = () => {
         .eq('id', applicationId)
         .single();
 
-      if (applicationError) throw applicationError;
+      if (applicationError) {
+        console.error('Error fetching application:', applicationError);
+        throw applicationError;
+      }
+
+      console.log('Application data fetched:', applicationData);
       
       // Update application status
       const { error: updateError } = await supabase
         .from('job_applications')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', applicationId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Error updating application:', updateError);
+        throw updateError;
+      }
+
+      console.log('Application status updated successfully');
 
       // Create status history entry
       const { error: historyError } = await supabase
@@ -163,7 +178,10 @@ export const useJobApplications = () => {
           changed_by: user.id
         });
 
-      if (historyError) throw historyError;
+      if (historyError) {
+        console.error('Error creating history entry:', historyError);
+        // Don't throw here, history is not critical
+      }
 
       // Get recruiter profile for notification
       const { data: recruiterProfile } = await supabase
@@ -173,32 +191,46 @@ export const useJobApplications = () => {
         .single();
 
       // Create notification for the applicant
-      if (applicationData && applicationData.user_id) {
-        const jobTitle = applicationData.job?.title || 'a job';
+      if (applicationData?.user_id) {
+        const jobTitle = applicationData.job?.title || 'Unknown Job';
         const statusMessage = getStatusMessage(newStatus);
         const recruiterName = recruiterProfile?.full_name || 'The recruiter';
 
-        await supabase.from('notifications').insert({
-          user_id: applicationData.user_id,
-          title: `Application ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
-          message: `${recruiterName} has ${statusMessage} your application for "${jobTitle}"`,
-          type: 'application_update',
-          related_id: applicationId
-        });
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: applicationData.user_id,
+            title: `Application ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+            message: `${recruiterName} has ${statusMessage} your application for "${jobTitle}"`,
+            type: 'application_update',
+            related_id: applicationId
+          });
+
+        if (notificationError) {
+          console.error('Error creating applicant notification:', notificationError);
+        } else {
+          console.log('Applicant notification created successfully');
+        }
       }
 
       // Create notification for the recruiter (activity log)
-      if (applicationData?.job?.recruiter_id && applicationData.job.recruiter_id === user.id) {
+      if (applicationData?.job?.recruiter_id === user.id) {
         const applicantName = applicationData.user_info?.full_name || 'Unknown applicant';
-        const jobTitle = applicationData.job?.title || 'a job';
+        const jobTitle = applicationData.job?.title || 'Unknown Job';
 
-        await supabase.from('notifications').insert({
-          user_id: user.id,
-          title: 'Application Status Updated',
-          message: `You ${newStatus === 'accepted' ? 'accepted' : newStatus === 'rejected' ? 'rejected' : 'updated'} ${applicantName}'s application for "${jobTitle}"`,
-          type: 'recruiter_activity',
-          related_id: applicationId
-        });
+        const { error: recruiterNotificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            title: 'Application Status Updated',
+            message: `You ${getActionMessage(newStatus)} ${applicantName}'s application for "${jobTitle}"`,
+            type: 'recruiter_activity',
+            related_id: applicationId
+          });
+
+        if (recruiterNotificationError) {
+          console.error('Error creating recruiter notification:', recruiterNotificationError);
+        }
       }
 
       toast({
@@ -220,7 +252,7 @@ export const useJobApplications = () => {
     }
   };
 
-  // Helper function to get appropriate status message
+  // Helper function to get appropriate status message for applicant
   const getStatusMessage = (status: string): string => {
     switch (status) {
       case 'accepted':
@@ -231,6 +263,22 @@ export const useJobApplications = () => {
         return 'moved to interview stage for';
       case 'reviewing':
         return 'is reviewing';
+      default:
+        return `updated to ${status}`;
+    }
+  };
+
+  // Helper function to get action message for recruiter
+  const getActionMessage = (status: string): string => {
+    switch (status) {
+      case 'accepted':
+        return 'accepted';
+      case 'rejected':
+        return 'rejected';
+      case 'interview':
+        return 'moved to interview stage';
+      case 'reviewing':
+        return 'are now reviewing';
       default:
         return `updated to ${status}`;
     }
