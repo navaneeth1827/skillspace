@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useJobApplications } from "@/hooks/useJobApplications";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +18,7 @@ const MyJobs = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { updateApplicationStatus } = useJobApplications();
   const [postedJobs, setPostedJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [selectedJobApplications, setSelectedJobApplications] = useState<JobApplication[]>([]);
@@ -166,15 +168,10 @@ const MyJobs = () => {
     };
   }, [user, toast]);
 
-  const updateApplicationStatus = async (applicationId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('job_applications')
-        .update({ status: newStatus })
-        .eq('id', applicationId);
-
-      if (error) throw error;
-
+  const handleUpdateApplicationStatus = async (applicationId: string, newStatus: string) => {
+    const success = await updateApplicationStatus(applicationId, newStatus);
+    
+    if (success) {
       setApplications(prev => 
         prev.map(app => 
           app.id === applicationId 
@@ -193,18 +190,6 @@ const MyJobs = () => {
           )
         );
       }
-
-      toast({
-        title: "Success",
-        description: `Application ${newStatus === 'accepted' ? 'accepted' : 'rejected'} successfully.`
-      });
-    } catch (error) {
-      console.error("Error updating application status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update application status. Please try again.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -399,7 +384,7 @@ const MyJobs = () => {
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2 mt-4">
                             <Button 
-                              onClick={() => updateApplicationStatus(application.id, 'accepted')}
+                              onClick={() => handleUpdateApplicationStatus(application.id, 'accepted')}
                               disabled={application.status !== 'pending'}
                               variant="default"
                               className="flex-1"
@@ -407,7 +392,7 @@ const MyJobs = () => {
                               Accept
                             </Button>
                             <Button 
-                              onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                              onClick={() => handleUpdateApplicationStatus(application.id, 'rejected')}
                               disabled={application.status !== 'pending'}
                               variant="outline" 
                               className="flex-1"
@@ -487,9 +472,28 @@ const MyJobs = () => {
                                 </CardDescription>
                               </div>
                             </div>
-                            <Badge variant={application.status === 'pending' ? 'outline' : application.status === 'accepted' ? 'default' : 'secondary'}>
-                              {application.status}
-                            </Badge>
+                            <div className="flex flex-col items-end gap-2">
+                              <Badge 
+                                variant={
+                                  application.status === 'pending' ? 'outline' : 
+                                  application.status === 'accepted' ? 'default' : 
+                                  application.status === 'rejected' ? 'destructive' : 
+                                  'secondary'
+                                }
+                              >
+                                {application.status}
+                              </Badge>
+                              {application.status === 'accepted' && (
+                                <div className="text-xs text-green-600 font-medium">
+                                  🎉 Congratulations!
+                                </div>
+                              )}
+                              {application.status === 'rejected' && (
+                                <div className="text-xs text-muted-foreground">
+                                  Better luck next time
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent>
@@ -602,14 +606,14 @@ const MyJobs = () => {
                               <Button 
                                 variant="default" 
                                 size="sm"
-                                onClick={() => updateApplicationStatus(app.id, 'accepted')}
+                                onClick={() => handleUpdateApplicationStatus(app.id, 'accepted')}
                               >
                                 Accept
                               </Button>
                               <Button 
                                 variant="secondary" 
                                 size="sm"
-                                onClick={() => updateApplicationStatus(app.id, 'rejected')}
+                                onClick={() => handleUpdateApplicationStatus(app.id, 'rejected')}
                               >
                                 Reject
                               </Button>

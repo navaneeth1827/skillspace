@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useJobApplications } from "@/hooks/useJobApplications";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +18,7 @@ const ReceivedApplications = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { updateApplicationStatus } = useJobApplications();
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null);
@@ -115,15 +117,11 @@ const ReceivedApplications = () => {
     };
   }, [user, toast, applicationType]);
 
-  const updateApplicationStatus = async (applicationId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('job_applications')
-        .update({ status: newStatus })
-        .eq('id', applicationId);
-
-      if (error) throw error;
-
+  const handleUpdateApplicationStatus = async (applicationId: string, newStatus: string) => {
+    const success = await updateApplicationStatus(applicationId, newStatus);
+    
+    if (success) {
+      // Update local state to reflect the change immediately
       setApplications(prev => 
         prev.map(app => 
           app.id === applicationId 
@@ -135,18 +133,6 @@ const ReceivedApplications = () => {
       if (selectedApplication?.id === applicationId) {
         setSelectedApplication(prev => prev ? { ...prev, status: newStatus } : null);
       }
-
-      toast({
-        title: "Success",
-        description: `Application ${newStatus === 'accepted' ? 'accepted' : 'rejected'} successfully.`
-      });
-    } catch (error) {
-      console.error("Error updating application status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update application status. Please try again.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -262,14 +248,14 @@ const ReceivedApplications = () => {
                             <Button 
                               variant="default" 
                               size="sm"
-                              onClick={() => updateApplicationStatus(application.id, 'accepted')}
+                              onClick={() => handleUpdateApplicationStatus(application.id, 'accepted')}
                             >
                               Accept
                             </Button>
                             <Button 
                               variant="secondary" 
                               size="sm"
-                              onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                              onClick={() => handleUpdateApplicationStatus(application.id, 'rejected')}
                             >
                               Reject
                             </Button>
@@ -316,10 +302,32 @@ const ReceivedApplications = () => {
                           <div className="text-sm text-muted-foreground">
                             {application.job?.company || 'Unknown Company'} - {application.job?.location || 'Unknown Location'}
                           </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Applied on {new Date(application.created_at).toLocaleDateString()}
+                          </div>
                         </div>
-                        <Badge variant={application.status === 'pending' ? 'outline' : application.status === 'accepted' ? 'default' : 'secondary'}>
-                          {application.status}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge 
+                            variant={
+                              application.status === 'pending' ? 'outline' : 
+                              application.status === 'accepted' ? 'default' : 
+                              application.status === 'rejected' ? 'destructive' : 
+                              'secondary'
+                            }
+                          >
+                            {application.status}
+                          </Badge>
+                          {application.status === 'accepted' && (
+                            <div className="text-xs text-green-600 font-medium">
+                              🎉 Congratulations!
+                            </div>
+                          )}
+                          {application.status === 'rejected' && (
+                            <div className="text-xs text-muted-foreground">
+                              Better luck next time
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-6">
@@ -355,7 +363,7 @@ const ReceivedApplications = () => {
             application={selectedApplication}
             isOpen={isDetailsDialogOpen}
             onClose={() => setIsDetailsDialogOpen(false)}
-            onStatusUpdate={updateApplicationStatus}
+            onStatusUpdate={handleUpdateApplicationStatus}
             onMessage={handleMessageApplicant}
           />
         )}

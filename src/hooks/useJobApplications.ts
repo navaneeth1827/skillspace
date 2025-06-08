@@ -64,22 +64,38 @@ export const useJobApplications = () => {
         throw error;
       }
 
-      // Create notification for recruiter
+      // Get job and applicant details for notification
       const { data: job } = await supabase
         .from('jobs')
         .select('title, recruiter_id')
         .eq('id', jobId)
         .single();
 
+      const { data: applicantProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
+      // Create notification for recruiter
       if (job?.recruiter_id) {
         await supabase.from('notifications').insert({
           user_id: job.recruiter_id,
           title: 'New Job Application',
-          message: `Someone has applied to your job "${job.title}"`,
+          message: `${applicantProfile?.full_name || 'Someone'} has applied to your job "${job.title}"`,
           type: 'new_application',
           related_id: application.id
         });
       }
+
+      // Create notification for applicant confirming submission
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: 'Application Submitted',
+        message: `Your application for "${job?.title}" has been successfully submitted`,
+        type: 'application_submitted',
+        related_id: application.id
+      });
 
       toast({
         title: 'Application submitted',
@@ -149,16 +165,38 @@ export const useJobApplications = () => {
 
       if (historyError) throw historyError;
 
+      // Get recruiter profile for notification
+      const { data: recruiterProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
       // Create notification for the applicant
       if (applicationData && applicationData.user_id) {
         const jobTitle = applicationData.job?.title || 'a job';
         const statusMessage = getStatusMessage(newStatus);
+        const recruiterName = recruiterProfile?.full_name || 'The recruiter';
 
         await supabase.from('notifications').insert({
           user_id: applicationData.user_id,
-          title: `Application ${newStatus}`,
-          message: `Your application for "${jobTitle}" has been ${statusMessage}`,
+          title: `Application ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+          message: `${recruiterName} has ${statusMessage} your application for "${jobTitle}"`,
           type: 'application_update',
+          related_id: applicationId
+        });
+      }
+
+      // Create notification for the recruiter (activity log)
+      if (applicationData?.job?.recruiter_id && applicationData.job.recruiter_id === user.id) {
+        const applicantName = applicationData.user_info?.full_name || 'Unknown applicant';
+        const jobTitle = applicationData.job?.title || 'a job';
+
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: 'Application Status Updated',
+          message: `You ${newStatus === 'accepted' ? 'accepted' : newStatus === 'rejected' ? 'rejected' : 'updated'} ${applicantName}'s application for "${jobTitle}"`,
+          type: 'recruiter_activity',
           related_id: applicationId
         });
       }
@@ -186,15 +224,15 @@ export const useJobApplications = () => {
   const getStatusMessage = (status: string): string => {
     switch (status) {
       case 'accepted':
-        return 'accepted! Congratulations!';
+        return 'accepted';
       case 'rejected':
-        return 'rejected. Thank you for your interest.';
+        return 'rejected';
       case 'interview':
-        return 'moved to the interview stage.';
+        return 'moved to interview stage for';
       case 'reviewing':
-        return 'under review.';
+        return 'is reviewing';
       default:
-        return `updated to ${status}.`;
+        return `updated to ${status}`;
     }
   };
 
