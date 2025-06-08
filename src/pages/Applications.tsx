@@ -1,213 +1,198 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from "@/contexts/AuthContext";
-import { useJobApplications } from "@/hooks/useJobApplications";
-import { useNavigate } from 'react-router-dom';
-import Navbar from "@/components/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { JobApplication } from "@/types/job";
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useJobApplications, JobApplication } from '@/hooks/useJobApplications';
+import { useAuth } from '@/contexts/AuthContext';
+import { format } from 'date-fns';
+import { CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
+import Navbar from '@/components/Navbar';
 
 const Applications = () => {
   const { user } = useAuth();
-  const { updateApplicationStatus, getRecruiterApplications } = useJobApplications();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const [applications, setApplications] = useState<JobApplication[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const { 
+    applications, 
+    isLoading, 
+    updateApplicationStatus, 
+    getRecruiterApplications 
+  } = useJobApplications();
+
+  const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/signin');
-      return;
+    if (user) {
+      getRecruiterApplications();
     }
+  }, [user]);
 
-    if (user.user_metadata?.user_type !== 'recruiter') {
-      toast({
-        title: 'Access denied',
-        description: 'Only recruiters can view this page',
-        variant: 'destructive'
-      });
-      navigate('/');
-      return;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'accepted':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-yellow-100 text-yellow-800';
     }
+  };
 
-    fetchApplications();
-  }, [user, navigate, toast]);
-
-  const fetchApplications = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getRecruiterApplications();
-      setApplications(data as JobApplication[]);
-    } catch (error) {
-      console.error('Error fetching applications:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load applications',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsLoading(false);
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'accepted':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'rejected':
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <Clock className="h-4 w-4" />;
     }
   };
 
   const handleStatusUpdate = async (applicationId: string, newStatus: string) => {
-    setUpdatingId(applicationId);
     try {
-      const success = await updateApplicationStatus(applicationId, newStatus);
-      if (success) {
-        // Update local state
-        setApplications(prev => 
-          prev.map(app => 
-            app.id === applicationId 
-              ? { ...app, status: newStatus, updated_at: new Date().toISOString() } 
-              : app
-          )
-        );
-      }
+      await updateApplicationStatus(applicationId, newStatus);
+      // Refresh the list
+      getRecruiterApplications();
     } catch (error) {
       console.error('Error updating status:', error);
-    } finally {
-      setUpdatingId(null);
     }
   };
 
-  const getBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'pending': return 'outline';
-      case 'accepted': return 'default';
-      case 'rejected': return 'destructive';
-      case 'interview': return 'secondary';
-      default: return 'outline';
+  const groupedApplications = applications.reduce((acc, app) => {
+    const jobId = app.job?.id || 'unknown';
+    if (!acc[jobId]) {
+      acc[jobId] = {
+        job: app.job,
+        applications: []
+      };
     }
-  };
+    acc[jobId].applications.push(app);
+    return acc;
+  }, {} as Record<string, { job: any; applications: JobApplication[] }>);
 
-  if (!user) return null;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Loading applications...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container py-8 pt-24 max-w-6xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Job Applications</h1>
-          <Button variant="outline" onClick={() => navigate('/post-job')}>
-            Post New Job
-          </Button>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Job Applications</h1>
+          <p className="text-muted-foreground">
+            Manage applications received for your job postings
+          </p>
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          </div>
-        ) : applications.length === 0 ? (
+        {Object.keys(groupedApplications).length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center p-12">
-              <h3 className="text-xl font-semibold mb-2">No applications yet</h3>
-              <p className="text-muted-foreground mb-4">
-                When candidates apply to your jobs, they will appear here.
-              </p>
-              <Button onClick={() => navigate('/post-job')}>
-                Post Your First Job
-              </Button>
+            <CardContent className="py-8">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-2">No applications yet</h3>
+                <p className="text-muted-foreground">
+                  Applications for your job postings will appear here.
+                </p>
+              </div>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
-            {applications.map((application) => (
-              <Card key={application.id} className="overflow-hidden">
-                <CardHeader className="bg-muted/30">
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={application.applicant?.avatar_url} />
-                        <AvatarFallback>
-                          {application.applicant?.full_name?.charAt(0) || '?'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {application.applicant?.full_name || 'Unknown Applicant'}
-                        </CardTitle>
-                        <div className="text-sm text-muted-foreground">
-                          Applied for: {application.job?.title}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(application.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
+            {Object.values(groupedApplications).map(({ job, applications: jobApplications }) => (
+              <Card key={job?.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-xl">{job?.title}</CardTitle>
+                      <p className="text-muted-foreground">{job?.company} • {job?.location}</p>
                     </div>
-                    <Badge variant={getBadgeVariant(application.status)}>
-                      {application.status}
+                    <Badge variant="secondary">
+                      {jobApplications.length} application{jobApplications.length !== 1 ? 's' : ''}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="mb-4">
-                    <h4 className="font-medium mb-2">Cover Letter</h4>
-                    <p className="text-muted-foreground">
-                      {application.cover_letter || 'No cover letter provided'}
-                    </p>
-                  </div>
-                  
-                  {application.expected_salary && (
-                    <div className="mb-4">
-                      <h4 className="font-medium mb-1">Expected Salary</h4>
-                      <p className="text-muted-foreground">{application.expected_salary}</p>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => navigate(`/profile/${application.user_id}`)}
-                    >
-                      View Profile
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => navigate(`/messages/${application.user_id}`)}
-                    >
-                      Message
-                    </Button>
-                    
-                    {application.status === 'pending' && (
-                      <>
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          onClick={() => handleStatusUpdate(application.id, 'accepted')}
-                          disabled={updatingId === application.id}
-                        >
-                          {updatingId === application.id ? 'Accepting...' : 'Accept'}
-                        </Button>
-                        <Button 
-                          variant="secondary" 
-                          size="sm"
-                          onClick={() => handleStatusUpdate(application.id, 'rejected')}
-                          disabled={updatingId === application.id}
-                        >
-                          {updatingId === application.id ? 'Rejecting...' : 'Reject'}
-                        </Button>
-                      </>
-                    )}
-                    
-                    {application.status === 'accepted' && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleStatusUpdate(application.id, 'interview')}
-                        disabled={updatingId === application.id}
+                <CardContent>
+                  <div className="space-y-4">
+                    {jobApplications.map((application) => (
+                      <div
+                        key={application.id}
+                        className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
                       >
-                        {updatingId === application.id ? 'Moving...' : 'Schedule Interview'}
-                      </Button>
-                    )}
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-semibold">
+                              {application.applicant?.full_name || 'Unknown Applicant'}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {application.applicant?.email}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={getStatusColor(application.status)}>
+                              {getStatusIcon(application.status)}
+                              <span className="ml-1 capitalize">{application.status}</span>
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm font-medium">Applied:</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(application.created_at), 'PPp')}
+                            </p>
+                          </div>
+                          {application.expected_salary && (
+                            <div>
+                              <p className="text-sm font-medium">Expected Salary:</p>
+                              <p className="text-sm text-muted-foreground">
+                                {application.expected_salary}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {application.cover_letter && (
+                          <div className="mb-4">
+                            <p className="text-sm font-medium mb-1">Cover Letter:</p>
+                            <p className="text-sm text-muted-foreground bg-muted p-3 rounded">
+                              {application.cover_letter}
+                            </p>
+                          </div>
+                        )}
+
+                        {application.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleStatusUpdate(application.id, 'accepted')}
+                            >
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleStatusUpdate(application.id, 'rejected')}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>

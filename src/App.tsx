@@ -1,5 +1,7 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import Index from '@/pages/Index';
@@ -19,12 +21,13 @@ import Calendar from '@/pages/Calendar';
 import Messages from '@/pages/Messages';
 import Community from '@/pages/Community';
 import NotFound from '@/pages/NotFound';
-import { QueryClient } from 'react-query';
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <AuthProvider>
-      <QueryClient>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
         <Router>
           <div className="min-h-screen bg-background text-foreground">
             <Routes>
@@ -50,8 +53,8 @@ function App() {
           </div>
           <Toaster />
         </Router>
-      </QueryClient>
-    </AuthProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
